@@ -61,18 +61,29 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] Summary in package README with caveats; bench/README.md documents method — 2026-10-14
 - [ ] Owner review of Phase 5 and of v0.1 as a whole
 
+## analyze CLI (branch feat/analyze-cli)
+
+- [x] ADR-0004: same package bin, input rules, grouping, finished-only percentiles with minimum samples, notes, terminal safety, exit codes — 2026-10-14
+- [x] bin/express-observe.js, src/analyze.js, src/analyze-format.js; package.json bin and files — 2026-10-14
+- [x] 30 tests: exact percentiles, minimum samples, interrupted handling, status classes, unknown routes, skip reasons, wrapped records, CRLF, stdin, multiple files, time window, grouping, sorting, top, slowest, escape-sequence safety, exit codes, end to end with the real middleware — 2026-10-14
+- [x] demo/lab.js --log, README sections (package and demo), ARCHITECTURE section 11 — 2026-10-14
+- [ ] Owner review; merge feat/analyze-cli into main and push
+
+## Repository
+
+- [x] MIT LICENSE added with the GitHub handle erenulutas0 as copyright holder (change if a full name is preferred) — 2026-10-14
+- [x] Published to https://github.com/erenulutas0/observability (main) — 2026-10-14
+
 ## Later (not scheduled)
 
 - [ ] Performance candidates from the 2026-10-14 profiles, each to be measured before and after: replace per-request closures and Object.freeze in server-timing.js with a prototype-based object; measure the cost of the per-request req.route accessor (about 1.3% self time); compare on-finished with a plain finish/close listener (ADR-0001 option B, about 3% self time incl. ee-first)
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges
-
+- [ ] analyze: bounded-memory histogram mode for very large logs; per-group slowest; side-by-side comparison of two time windows or releases
 - [ ] diagnostic-lab second wave: L3 bounded CPU, L4 prebuilt large JSON, L5 fast API + slow client, L6 one operation / several attempts; small Node client measuring clientAttemptMs / operationMs
-- [ ] `analyze` CLI over JSON log files (per-route count, errors, p50/p95/p99 for headerDurationMs and durationMs separately; input is the log file only)
 - [ ] `doctor` integration checker
 - [ ] React Native correlation demo (X-Request-Id + Server-Timing on the client)
 - [ ] Express 5 compatibility
 - [ ] Optional OpenTelemetry trace-id correlation
-- [x] MIT LICENSE added with the GitHub handle erenulutas0 as copyright holder (change if a full name is preferred) — 2026-10-14
 
 ## History
 
@@ -81,3 +92,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — Phase 3 implemented: access-log record, route templates, termination handling, sink isolation. 129 tests passing, stable across five consecutive runs (Node 22.23.2, Express 4.22.3, Windows 11). Mutation spot-check: 16 of 18 deliberate breakages caught; the two survivors have no observable effect (the belt-and-braces logged flag, and a field the record builder ignores). Smoke run found that Express 4's own default error handler prints stacks to stderr outside NODE_ENV=test; documented in ARCHITECTURE.md 4.5. ADR-0003 records the per-request req.route accessor.
 - 2026-10-14 — Phase 4: diagnostic-lab demo and READMEs. lab:check passes all 12 scenarios with no duplicate records, and fails (exit 1) when the demo's mount config is removed. README quick start and the pino sink example were executed against the real package; pino adds pid and hostname by default, which the README now mentions.
 - 2026-10-14 — Phase 5: benchmark harness and first session. Medians of 3 runs: baseline 8039 req/s and 128 µs server CPU per request; ids-timing 5135 req/s (-36%), 194 µs; full-log 3652 req/s (-55%), 287 µs; pino-http 4349 req/s (-46%), 222 µs. Ranges are wide because a VirtualBox VM and Docker were running. Profiles show no single hotspot: express-observe plus on-headers/on-finished account for about 12% (ids-timing) and 21% (full-log) of server self time, spread across per-request setup, synchronous file writes and on-finished. No code was changed in this phase.
+- 2026-10-14 — v0.1 pushed to github.com/erenulutas0/observability (main, 5 commits after a scan for personal or sensitive data). MIT LICENSE added. analyze CLI implemented on branch feat/analyze-cli: 159 tests passing in total; mutation spot-check 10 of 11 caught, the survivor being a redundant safeguard (Node 22 readline already propagates stream errors; comment corrected).
