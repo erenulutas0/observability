@@ -34,6 +34,24 @@ const SINK_FAILURE_ROUTES = {
 }
 const SLOW_SINK_MS = 300
 
+/** L3: bounded synchronous CPU work that blocks the event loop. */
+const CPU_WORK_MS = { short: 20, long: 80 }
+
+/** L4: the same large JSON document, either serialized per request or prebuilt once at startup. */
+const LARGE_ITEM_COUNT = 50_000
+const LARGE_DOCUMENT = {
+  items: Array.from({ length: LARGE_ITEM_COUNT }, (_, i) => ({ id: i + 1, title: `Synthetic item ${i + 1}`, tags: ['lab', 'synthetic'], score: (i * 7) % 100 }))
+}
+const LARGE_DOCUMENT_TEXT = JSON.stringify(LARGE_DOCUMENT)
+
+/** Busy-wait on the monotonic clock. Only ever called with a value from CPU_WORK_MS. */
+function burnCpu (ms) {
+  const end = process.hrtime.bigint() + BigInt(Math.round(ms * 1e6))
+  let x = 0
+  while (process.hrtime.bigint() < end) x++
+  return x
+}
+
 function writeJsonLine (record) {
   process.stdout.write(JSON.stringify(record) + '\n')
 }
@@ -128,6 +146,33 @@ function createApp (options = {}) {
     app.get(route, (req, res) => res.json({ scenario: 'L8', route }))
   }
 
+  // L3: synchronous CPU work. While it runs, the event loop cannot accept, parse or route any other request.
+  app.get('/lab/l3/:profile', (req, res) => {
+    const ms = CPU_WORK_MS[req.params.profile]
+    if (ms === undefined) return res.status(404).json({ error: 'unknown profile' })
+    res.serverTiming.start('cpu')
+    burnCpu(ms)
+    res.serverTiming.end('cpu')
+    res.json({ scenario: 'L3', profile: req.params.profile })
+  })
+
+  // L4: res.json() serializes the large document on every request, before headers can be written;
+  // the prebuilt variant sends text produced once at startup.
+  app.get('/lab/l4/serialize', (req, res) => {
+    res.json(LARGE_DOCUMENT)
+  })
+  app.get('/lab/l4/prebuilt', (req, res) => {
+    res.type('application/json').send(LARGE_DOCUMENT_TEXT)
+  })
+
+  // L6: every other request fails with 503, so a client retry turns one user action into two requests.
+  let flakyCounter = 0
+  app.get('/lab/l6/flaky', (req, res) => {
+    flakyCounter++
+    if (flakyCounter % 2 === 1) return res.status(503).json({ error: 'temporarily unavailable' })
+    res.json({ scenario: 'L6', ok: true })
+  })
+
   // An application error passed to next(err).
   app.get('/lab/error', (req, res, next) => {
     next(new Error('diagnostic-lab: synthetic failure'))
@@ -166,5 +211,8 @@ module.exports = {
   WAIT_BEFORE_HEADERS_MS,
   SLOW_BODY,
   L7_RESPONSE_AFTER_MS,
-  SLOW_SINK_MS
+  SLOW_SINK_MS,
+  CPU_WORK_MS,
+  LARGE_ITEM_COUNT,
+  burnCpu
 }

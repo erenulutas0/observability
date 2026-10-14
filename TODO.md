@@ -103,7 +103,12 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] Peer range ^4.17.0 || ^5.0.0; express5 dev alias; jest.express5.config.js; package npm test runs both majors; guard test for the loaded version (ADR-0008) — 2026-10-14
 - [x] Version-specific tests: Express 4 inline regex params; Express 5 named wildcards and optional segments; rejected async handlers (Express 5: finished 500; Express 4: open until the client leaves) — 2026-10-14
 - [x] Fixed a flaky leak assertion: sentinel 77 matched a timestamp; short numeric sentinels replaced with 7-digit values — 2026-10-14
-- [ ] Owner review; merge perf/hot-path, then feat/express-5, into main and push
+- [x] Merged into main (fast-forward) and pushed — 2026-10-14
+
+## diagnostic-lab second wave (branch feat/lab-second-wave)
+
+- [x] L3 CPU work blocking concurrent requests (fast requests sent from a worker thread, synchronised with the slow request), L4 serialized vs prebuilt 50,000-item JSON, L5 fast API + 120 ms client work, L6 503 then retry; each with reading/actually lines and --check assertions — 2026-10-14
+- [ ] Owner review; merge feat/lab-second-wave into main and push
 
 ## Repository
 
@@ -114,7 +119,7 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges
 - [ ] analyze: bounded-memory histogram mode for very large logs; per-group slowest; side-by-side comparison of two time windows or releases
-- [ ] diagnostic-lab second wave: L3 bounded CPU, L4 prebuilt large JSON, L5 fast API + slow client, L6 one operation / several attempts; small Node client measuring clientAttemptMs / operationMs
+- [ ] Optional event-loop delay in the record (perf_hooks.monitorEventLoopDelay): L3 shows that waiting for a blocked event loop happens before observe() runs and is invisible today; needs a contract decision
 - [ ] Optional OpenTelemetry trace-id correlation
 
 ## History
@@ -131,3 +136,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — React Native demo merged into main. Emulator data kept off the system drive: AVDs, the system image and the Expo cache live on a data drive, verified by a boot that changed system-drive free space by 0 MB.
 - 2026-10-14 — Performance work on perf/hot-path: new A/B and micro benchmarks with noise floors; a termination bug fixed; on-finished replaced (kept, clear win); two candidates rejected as inconclusive. 206 package tests passing. Full table: bench/results/micro-2026-10-14/README.md.
 - 2026-10-14 — Express 5 support on feat/express-5: the full suite passes on Express 4.22.3 (208 run, 3 version-skipped) and 5.3.0 (209 run, 2 version-skipped), stable across repeated runs.
+- 2026-10-14 — perf/hot-path and feat/express-5 merged into main. diagnostic-lab second wave on feat/lab-second-wave: L3 shows fast clients waiting about 70 ms for a blocked event loop while their records say about 0.3 ms; stable across repeated runs after synchronising the client worker.

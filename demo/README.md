@@ -59,6 +59,15 @@ The lab's reading function only sees the record. It is never told which scenario
 
 `lab.js` prints `clientAttemptMs`, measured by the client from request start to the end of the response. It is always larger than the server's `durationMs`, but the difference is **not** network time. The two clocks start and stop at different points: connection setup, request parsing before Express runs, kernel buffers and client-side processing all fall between them.
 
-## Second wave (not built yet)
+## Second wave: what the server cannot see
 
-L3 bounded CPU work, L4 prebuilt large JSON, L5 fast API with slow client processing, L6 one user operation with several HTTP attempts. See TODO.md.
+These scenarios need several requests or work on the client, so the lab prints two kinds of lines for each: `reading`, what the record alone supports, and `actually`, what the scenario did. The gap between them is the lesson.
+
+| ID | What happens | What the records show | What actually happened |
+|---|---|---|---|
+| L3 | `GET /lab/l3/long` burns 80 ms of CPU; three `GET /lab/l0` are sent from another thread while it runs | The CPU request: about 80 ms before headers, with `cpu;dur=80` in Server-Timing. The three fast requests: about 0.3 ms each | The fast clients waited about 70 ms for the blocked event loop **before `observe()` ran**. No server record contains that wait |
+| L4 | The same 50,000-item document (about 4 MB) is sent prebuilt, then serialized with `res.json()` | Serialized: more `headerDurationMs` (for example 17 ms against 4 ms) | `JSON.stringify` runs before headers can be written. The record cannot name it, and the client's parsing is in neither record |
+| L5 | A fast request, then 120 ms of client-side work before the result is usable | A fast, correct record (under 1 ms) | The user waited for the client's own work |
+| L6 | `GET /lab/l6/flaky` answers 503, the client retries and gets 200 | Two complete, unremarkable records with two request IDs | One user action took both. Only a client-side operation ID ties them together, as in [the React Native example](../examples/react-native-correlation/README.md) |
+
+The lab sends L3's fast requests from a worker thread, because the lab's client and server share a process: a client on the main thread would be frozen by the same blocked event loop it is trying to observe.

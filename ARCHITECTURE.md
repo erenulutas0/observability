@@ -300,7 +300,7 @@ Rules that follow from this:
 - The middleware does not compute `dbMs`, payload sizes or any derived "network" number. Those belong to the demo or to the application's own instrumentation, where they can be labelled honestly.
 - When the data needed for a conclusion is missing, the correct output (in docs, the demo and any future `analyze` CLI) is **"unknown"**, not a guess.
 
-## 10. Demo shape: `diagnostic-lab` **[implemented for L0, L1, L2, L7, L8 · second wave proposed, ADR-0002]**
+## 10. Demo shape: `diagnostic-lab` **[implemented: L0–L8, ADR-0002]**
 
 Code: `demo/app.js` (server), `demo/lab.js` (client runner, `--check` asserts every record). Usage and the per-scenario reading guide: `demo/README.md`. The lab's reading function receives only the record, never the scenario ID.
 
@@ -314,6 +314,6 @@ Code: `demo/app.js` (server), `demo/lab.js` (client runner, `--check` asserts ev
 | L7 | client closes socket before / after headers | one record, `interrupted`, `status` null or real | that every close is a user cancel |
 | L8 | custom sink that throws / rejects / is slow | HTTP behaviour unchanged, one warning | that swallowing errors has zero cost |
 
-Second wave (after v0.1): L3 bounded CPU work, L4 prebuilt large synthetic JSON, L5 fast API + slow client, L6 one logical operation with several physical attempts. A tiny client (Node script first; React Native only if real client time is available) is added only after the server core is complete.
+Second wave (implemented 2026-10-14): L3 bounded CPU work blocking concurrent requests, L4 serialized vs prebuilt large JSON, L5 fast API + slow client work, L6 one operation with two attempts. The lab prints for each what the records support and, separately, what actually happened. The client side of mobile apps is covered by examples/react-native-correlation.
 
 Safety constraints for the demo: every delay, payload size and repeat count comes from a server-side allowlist; no endpoint accepts arbitrary `delay`/`size`/`cpu` parameters; it binds to loopback by default; only synthetic data.

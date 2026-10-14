@@ -9,7 +9,7 @@
 
 const http = require('node:http')
 const net = require('node:net')
-const { createApp, HOST, WAIT_BEFORE_HEADERS_MS, SLOW_BODY, L7_RESPONSE_AFTER_MS, SLOW_SINK_MS } = require('./app')
+const { createApp, HOST, WAIT_BEFORE_HEADERS_MS, SLOW_BODY, L7_RESPONSE_AFTER_MS, SLOW_SINK_MS, CPU_WORK_MS, LARGE_ITEM_COUNT, burnCpu } = require('./app')
 
 const fs = require('node:fs')
 
@@ -217,6 +217,164 @@ const SCENARIOS = [
   }
 ]
 
+// ---------------------------------------------------------------------------------------------------------------
+// Second wave: scenarios that need several requests or client-side work. Each prints two kinds of lines:
+//   reading   what the record alone supports (interpret(), unaware of the scenario)
+//   actually  what the scenario did, which the records cannot show
+// The gap between the two is the point of these scenarios.
+
+const CLIENT_WORK_MS = 120
+
+/**
+ * Send GET requests from a worker thread after `delayMs`. The lab's server runs in this process, so a client on
+ * the main thread would be frozen by the same blocked event loop it is trying to observe; a worker has its own.
+ */
+async function fetchFromWorker (port, paths, delayMs) {
+  const { Worker } = require('node:worker_threads')
+  const code = `
+    const http = require('node:http')
+    const { parentPort, workerData } = require('node:worker_threads')
+    const msSince = (t0) => Number(process.hrtime.bigint() - t0) / 1e6
+    parentPort.once('message', () => setTimeout(async () => {
+      const results = await Promise.all(workerData.paths.map((path) => new Promise((resolve, reject) => {
+        const t0 = process.hrtime.bigint()
+        http.get({ host: workerData.host, port: workerData.port, path, agent: false }, (res) => {
+          res.resume()
+          res.on('end', () => resolve({ status: res.statusCode, requestId: res.headers['x-request-id'], clientAttemptMs: msSince(t0) }))
+        }).on('error', reject)
+      })))
+      parentPort.postMessage({ results })
+    }, workerData.delayMs))
+    parentPort.postMessage({ ready: true })
+  `
+  const worker = new Worker(code, { eval: true, workerData: { host: HOST, port, paths, delayMs } })
+  // Wait until the worker has loaded, so `go` starts its clock at a known moment.
+  await new Promise((resolve, reject) => {
+    worker.once('message', resolve)
+    worker.once('error', reject)
+  })
+  const results = new Promise((resolve, reject) => {
+    worker.once('message', (msg) => {
+      resolve(msg.results)
+      worker.terminate()
+    })
+    worker.once('error', reject)
+  })
+  return { go: () => worker.postMessage('go'), results }
+}
+
+const COMPOSITE_SCENARIOS = [
+  {
+    id: 'L3',
+    title: `${CPU_WORK_MS.long} ms of CPU work blocks three fast requests sent while it runs`,
+    async run ({ port, findRecord }) {
+      // The worker sends the fast requests 10 ms after `go`; the slow request is sent right after `go` and blocks
+      // the server's event loop for CPU_WORK_MS once it is handled.
+      const fastClient = await fetchFromWorker(port, ['/lab/l0', '/lab/l0', '/lab/l0'], 10)
+      fastClient.go()
+      const slow = await fetchOnce(port, '/lab/l3/long')
+      const fast = await fastClient.results
+      const slowRecord = await findRecord(slow.headers['x-request-id'])
+      const fastRecords = await Promise.all(fast.map((f) => findRecord(f.requestId)))
+      const fastMs = fast.map((f) => round1(f.clientAttemptMs))
+      return {
+        lines: [
+          `client   /lab/l3/long ${round1(slow.clientAttemptMs)} ms (Server-Timing: ${slow.headers['server-timing']}); 3x /lab/l0: ${fastMs.join(', ')} ms`,
+          `record   /lab/l3/long ${JSON.stringify(pick(slowRecord))}`,
+          `record   3x /lab/l0 durationMs: ${fastRecords.map((r) => r && r.durationMs).join(', ')}`,
+          `reading  /lab/l0: ${interpret(fastRecords[0]).join('; ')}`,
+          'actually the fast requests waited for the blocked event loop before observe() even ran. No server record can show that wait; only the client saw it.'
+        ],
+        failures: [
+          is(slowRecord && slowRecord.headerDurationMs >= CPU_WORK_MS.long * 0.9, 'slow record covers the CPU work'),
+          is(/cpu;dur=/.test(slow.headers['server-timing'] ?? ''), 'Server-Timing names the CPU work'),
+          is(Math.min(...fastMs) >= CPU_WORK_MS.long * 0.4, 'fast clients waited for the blocked event loop'),
+          is(fastRecords.every((r) => r && r.durationMs < CPU_WORK_MS.long * 0.25), 'fast records look fast: the wait is invisible to them')
+        ]
+      }
+    }
+  },
+  {
+    id: 'L4',
+    title: `${LARGE_ITEM_COUNT.toLocaleString('en')} items as JSON: serialized per request vs prebuilt`,
+    async run ({ port, findRecord }) {
+      // One warm-up of each, so JIT and buffer allocation do not land on the measured pair.
+      await fetchOnce(port, '/lab/l4/prebuilt')
+      await fetchOnce(port, '/lab/l4/serialize')
+      const prebuilt = await fetchOnce(port, '/lab/l4/prebuilt')
+      const serialize = await fetchOnce(port, '/lab/l4/serialize')
+      const pr = await findRecord(prebuilt.headers['x-request-id'])
+      const sr = await findRecord(serialize.headers['x-request-id'])
+      return {
+        lines: [
+          `client   prebuilt ${round1(prebuilt.clientAttemptMs)} ms, serialize ${round1(serialize.clientAttemptMs)} ms, ${Math.round(prebuilt.body.length / 1024)} KiB each`,
+          `record   prebuilt ${JSON.stringify(pick(pr))}`,
+          `record   serialize ${JSON.stringify(pick(sr))}`,
+          `reading  serialize: ${interpret(sr).join('; ')}`,
+          'actually res.json() runs JSON.stringify before any header can be written, so serialization shows up in headerDurationMs; the record cannot name it, and the client\'s own parsing is not in either record.'
+        ],
+        failures: [
+          is(pr && sr && pr.status === 200 && sr.status === 200, 'both answered 200'),
+          is(prebuilt.body.length === serialize.body.length, 'both sent the same document'),
+          is(sr.headerDurationMs > pr.headerDurationMs + 3, 'serializing per request adds time before headers')
+        ]
+      }
+    }
+  },
+  {
+    id: 'L5',
+    title: `fast API, then ${CLIENT_WORK_MS} ms of client-side work before the result is usable`,
+    async run ({ port, findRecord }) {
+      const t0 = process.hrtime.bigint()
+      const attempt = await fetchOnce(port, '/lab/l0')
+      JSON.parse(attempt.body)
+      burnCpu(CLIENT_WORK_MS) // stands in for client-side processing and rendering
+      const operationMs = msSince(t0)
+      const record = await findRecord(attempt.headers['x-request-id'])
+      return {
+        lines: [
+          `client   operationMs ${round1(operationMs)}, clientAttemptMs ${round1(attempt.clientAttemptMs)}`,
+          `record   ${JSON.stringify(pick(record))}`,
+          `reading  ${interpret(record).join('; ')}`,
+          'actually the user waited for the client\'s own work. The server record is correct and fast, and says nothing about it.'
+        ],
+        failures: [
+          is(operationMs >= CLIENT_WORK_MS, 'operation includes the client work'),
+          is(record && record.durationMs < CLIENT_WORK_MS / 4, 'server record stays fast')
+        ]
+      }
+    }
+  },
+  {
+    id: 'L6',
+    title: 'one user action, two HTTP attempts (503, then a retry)',
+    async run ({ port, findRecord }) {
+      const t0 = process.hrtime.bigint()
+      const attempts = []
+      for (let i = 0; i < 3; i++) {
+        const a = await fetchOnce(port, '/lab/l6/flaky')
+        attempts.push(a)
+        if (a.status < 500) break
+      }
+      const operationMs = msSince(t0)
+      const rs = await Promise.all(attempts.map((a) => findRecord(a.headers['x-request-id'])))
+      return {
+        lines: [
+          `client   operationMs ${round1(operationMs)} over ${attempts.length} attempts: ${attempts.map((a) => `${a.status} in ${round1(a.clientAttemptMs)} ms`).join(', ')}`,
+          ...rs.map((r, i) => `record   try ${i + 1} ${JSON.stringify(pick(r))}`),
+          `reading  try 1: ${interpret(rs[0]).join('; ')}`,
+          'actually one user action produced two requests with two request IDs. Each record is complete on its own; only a client-side operation ID could tie them together (see examples/react-native-correlation).'
+        ],
+        failures: [
+          is(attempts.length === 2, 'exactly one retry'),
+          is(rs.every(Boolean) && rs[0].status === 503 && rs[1].status === 200, 'server logged both attempts'),
+          is(new Set(attempts.map((a) => a.headers['x-request-id'])).size === 2, 'each attempt has its own request ID')
+        ]
+      }
+    }
+  }
+]
+
 function is (condition, description) {
   return condition ? null : description
 }
@@ -296,6 +454,16 @@ async function main () {
       : scenario.expect({ record, result, failure, recordWaitMs }).filter(Boolean)
     if (failures.length > 0) failed++
     printScenario(scenario, result, record, failure, failures)
+  }
+
+  const findRecord = (requestId) => waitFor(() => records.find((r) => r.requestId === requestId))
+  for (const scenario of COMPOSITE_SCENARIOS) {
+    const { lines, failures: checks } = await scenario.run({ port, findRecord })
+    const failures = checks.filter(Boolean)
+    if (failures.length > 0) failed++
+    const out = [`\n${scenario.id.padEnd(4)} ${scenario.title}`, ...lines.map((l) => `  ${l}`)]
+    if (CHECK) out.push(failures.length === 0 ? '  check    ok' : failures.map((f) => `  check    FAILED: ${f}`).join('\n'))
+    process.stdout.write(out.join('\n') + '\n')
   }
 
   // Let L7 handlers that answer late run, and make sure they add no second record.
