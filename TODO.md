@@ -118,12 +118,18 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] analyze: per-group eventLoopDelayMs statistics, blocked count, note, LOOP MAX MS column only when present — 2026-10-14
 - [x] diagnostic-lab enables it; L3 fast records show about 70–78 ms while durationMs is about 0.3 ms — 2026-10-14
 - [x] Cost: default path no measurable change vs main (7 of 12 rounds faster; A-vs-A 8 of 12 in the same session); enabled cost not resolvable on this machine today (median +7 µs, 7 of 12) — 2026-10-14
-- [ ] Owner review; merge feat/event-loop-delay into main and push
+- [x] Merged into main through PR #1 — 2026-10-14
+
+## CI (branch feat/ci)
+
+- [x] GitHub Actions: Ubuntu and Windows, Node 22, npm ci, npm test (Express 4 and 5, example), lab:check; read-only permissions; push runs, fork PRs run separately — 2026-10-14
+- [ ] First green run on both operating systems; then merge
 
 ## Repository
 
 - [x] MIT LICENSE added with the GitHub handle erenulutas0 as copyright holder (change if a full name is preferred) — 2026-10-14
 - [x] Published to https://github.com/erenulutas0/observability (main) — 2026-10-14
+- [x] Merged feature branches deleted locally and on GitHub — 2026-10-14
 
 ## Later (not scheduled)
 
