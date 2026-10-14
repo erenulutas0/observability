@@ -38,7 +38,7 @@ client -> socket -> http.Server parses head -> express app
                                                  |  req.id set, X-Request-Id set
                                                  |  res.serverTiming created
                                                  |  onHeaders(res, ...) registered
-                                                 |  onFinished(res, ...) registered
+                                                 |  'finish' + 'close' listeners registered
                                                  v
                                      routing -> handlers -> res.send / res.write / next(err)
                                                  |
@@ -133,7 +133,7 @@ Consequences, all covered by tests:
 
 ### 4.4 Structured logging (`logger.js`) **[implemented]**
 
-One record per request, built in the `on-finished` callback:
+One record per request, built when the response emits `finish`, or `close` without a prior `finish`:
 
 ```json
 {
@@ -178,7 +178,7 @@ Sink contract:
 
 ### 4.5 Error and connection handling (`index.js`) **[implemented]**
 
-- Single-shot: `on-finished` calls back once, on the first of response `finish`, socket `close` or socket `error`. A per-response `logged` flag is kept as belt-and-braces.
+- Single-shot: one `finish` and one `close` listener per response; whichever fires first decides the record (ADR-0007). On Node >= 12 every `ServerResponse` emits `close`, also on disconnect and socket error. A response that is already destroyed when `observe()` runs is reported on the next turn of the event loop. A per-response `logged` flag is kept as belt-and-braces.
 - Application errors: `next(err)` reaches the application's error middleware or Express's `finalhandler` unchanged. The middleware never touches the error object. Logged as `status: 500` (or whatever the handler sent), `termination: "finished"`.
 - `next(err)` after headers were sent: Express destroys the socket. Logged as `termination: "interrupted"` with the status that was actually sent.
 - Client disconnect before headers: logged as `interrupted`, `status: null`, `headerDurationMs: null`. If the handler responds later, no second record appears.
@@ -187,14 +187,14 @@ Sink contract:
 - Headers after `headersSent`: header writes happen either at middleware entry behind a `headersSent` check or inside the `on-headers` hook, which runs before the flush.
 - Outside our control: Express 4's default error handler prints the error stack to stderr when `NODE_ENV` is not `test`. Applications that must keep stacks out of stderr need their own error middleware.
 
-## 5. Dependencies **[implemented, ADR-0001 decision 1: on-headers 1.1.0, on-finished 2.4.1]**
+## 5. Dependencies **[implemented: on-headers 1.1.0 only; ADR-0001, ADR-0007]**
 
 Runtime:
 
 | Package | Version | Why | Alternative rejected |
 |---|---|---|---|
 | `on-headers` | ^1.1.0 | Correctly intercepts every `writeHead` form (status-only, status+headers object, legacy array form). 1.1.0 contains the fix for CVE-2025-7339. Zero dependencies, maintained by jshttp (the Express org) | Hand-written `writeHead` patch: same technique, less battle-testing, and we would own the CVE surface |
-| `on-finished` | ^2.4.1 | Single callback on finish/close/socket error; handles responses whose socket is already gone. Already in Express 4's tree, so no extra install | A ~15-line `finish`+`close` listener works on Node >= 12 and is a valid option if zero runtime deps is a hard requirement |
+| ~~`on-finished`~~ | removed | Replaced by `finish` + `close` listeners after it measured as the largest middleware-attributable cost (8.6 µs per request in the micro benchmark) and after a termination bug showed a `finish` listener was needed anyway (ADR-0007) | |
 
 Peer: `express ^4.17` (tested against 4.22.x). Dev: `jest ^30`, `supertest ^7`, `express 4.22.x`. Bench only: `autocannon ^8`, `pino-http ^11`.
 

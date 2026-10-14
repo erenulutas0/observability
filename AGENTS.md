@@ -18,7 +18,8 @@ Durable instructions for any agent or contributor. Keep this file short; details
 ## Code
 
 - Node >= 22, Express 4.x peer. `"use strict"` CommonJS modules. No build step.
-- Runtime dependencies are limited to `on-headers` and `on-finished` unless a decision record says otherwise.
+- The only runtime dependency is `on-headers` (ADR-0001, ADR-0007). Adding one needs a decision record.
+- Performance changes need evidence: a paired A/B with `bench/micro.js` (and `bench/ab.js` for HTTP) against the previous commit, beating an A-vs-A run. Keep a change only if it wins in every round.
 - The middleware must never: throw into the request pipeline, call `next(err)` for its own failures, mutate headers after `res.headersSent`, or log bodies, URLs, query strings, headers, cookies, IPs, user identifiers, error messages or stack traces by default.
 - Durations use `process.hrtime.bigint()`. IDs use `crypto.randomUUID()`.
 - Public API surface is `observe(options)` plus `res.serverTiming`, `req.id`, the documented record shape, and the `express-observe analyze` and `doctor` CLIs (options, JSON report shapes, exit codes). `doctor` must keep the ADR-0005 safety limits. Anything else is private.

@@ -1,7 +1,6 @@
 'use strict'
 
 const onHeaders = require('on-headers')
-const onFinished = require('on-finished')
 const { resolveRequestId } = require('./request-id')
 const {
   nowNs,
@@ -107,23 +106,47 @@ function attachHeaderHook (res, state, settings, warn) {
 }
 
 /**
- * Emit exactly one record when the response terminates.
+ * Call `listener(finished)` exactly once when the response is over (ADR-0007).
  *
- * on-finished fires once, on the first of: response 'finish', socket 'close', socket 'error'.
+ * - 'finish' first: the last chunk was handed to the OS -> listener(true).
+ * - 'close' without a prior 'finish': the connection ended first -> listener(false). On Node >= 12 every
+ *   ServerResponse emits 'close', also when the client disconnects or the socket errors.
+ * - Already destroyed when observe() runs (the client left during an earlier middleware): 'close' has already
+ *   been emitted, so the listener is scheduled instead -> listener(false).
+ * res.writableFinished is deliberately not used: once the socket is gone it can read true for a response that was
+ * ended after the client had disconnected.
+ */
+function onResponseEnd (res, listener) {
+  if (res.destroyed) {
+    setImmediate(listener, false)
+    return
+  }
+  let done = false
+  res.once('finish', () => {
+    if (done) return
+    done = true
+    listener(true)
+  })
+  res.once('close', () => {
+    if (done) return
+    done = true
+    listener(false)
+  })
+}
+
+/**
+ * Emit exactly one record when the response terminates.
  * - finished:    the response emitted 'finish' (the last chunk was handed to the OS; not proof of client receipt)
  * - interrupted: anything else (the connection ended first). This is an HTTP fact, not evidence of user intent.
  * status is only reported if headers were actually sent; Node's default statusCode 200 is not a response.
- *
- * Termination is decided by the 'finish' event, not by res.writableFinished: once the socket is gone,
- * writableFinished can read true for a response that was ended after the client had already disconnected.
  */
 function attachAccessLog (req, res, state, config, warn, deliver) {
   const getMatchedRoute = trackMatchedRoute(req)
-  res.once('finish', () => { state.finished = true })
 
-  onFinished(res, function onTerminated () {
+  onResponseEnd(res, function onTerminated (finished) {
     if (state.logged) return
     state.logged = true
+    state.finished = finished
     try {
       const endedAt = nowNs()
       const headersSent = res.headersSent === true

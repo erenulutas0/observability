@@ -5,9 +5,9 @@
 //
 //   node profile.js <variant> [--duration=10]
 //
-// Prints the top self-time functions overall and those belonging to express-observe, on-headers, on-finished
-// and ee-first. The .cpuprofile file is written to a temp directory and its path printed, so it can be opened
-// in Chrome DevTools.
+// Prints the top self-time functions overall and those belonging to express-observe and on-headers (plus
+// on-finished and ee-first, which versions before ADR-0007 used). The .cpuprofile file is written to a temp
+// directory and its path printed, so it can be opened in Chrome DevTools.
 
 const fs = require('node:fs')
 const os = require('node:os')

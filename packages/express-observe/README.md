@@ -16,7 +16,7 @@ It is a small building block that feeds the logging you already have. It is not 
 
 - Node.js 22 or later
 - Express 4.17 or later (tested with 4.22.3). Express 5 is not supported yet.
-- Runtime dependencies: [`on-headers`](https://www.npmjs.com/package/on-headers) 1.1 and [`on-finished`](https://www.npmjs.com/package/on-finished) 2.4, both from the Express maintainers.
+- One runtime dependency: [`on-headers`](https://www.npmjs.com/package/on-headers) 1.1, from the Express maintainers.
 
 ## Quick start
 

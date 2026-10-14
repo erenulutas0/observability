@@ -60,7 +60,7 @@ Every variant serves `GET /users/42` from a `/users/:id` route that returns a sm
 node bench/profile.js full-log
 ```
 
-Runs one variant under `--cpu-prof` and prints the functions with the most self time, overall and inside express-observe, on-headers and on-finished. Profiling slows the server down, so use it to see where cost goes, not how large it is.
+Runs one variant under `--cpu-prof` and prints the functions with the most self time, overall and inside express-observe and its dependencies. Profiling slows the server down, so use it to see where cost goes, not how large it is.
 
 ## Results
 

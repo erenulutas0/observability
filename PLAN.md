@@ -68,7 +68,7 @@ Kök `package.json` npm workspaces kullanır (`packages/*`).
 - Başarısız testi zayıflatarak/silerek yeşile çevirmek yasak; sözleşme değişecekse önce ADR.
 
 ## Tasarım ilkeleri
-- **Minimum bağımlılık, HTTP doğruluğundan ödün yok:** Çalışma zamanında yalnızca `on-headers` ve `on-finished` (jshttp). Gerekçe: ADR-0001, karar 1.
+- **Minimum bağımlılık, HTTP doğruluğundan ödün yok:** Çalışma zamanında yalnızca `on-headers` (jshttp). `on-finished` ölçüm sonrası kaldırıldı. Gerekçe: ADR-0001 ve ADR-0007.
 - **İsteği asla bozmasın:** Middleware'in kendi hataları yutulur ve isteğe yansımaz; uygulamanın hataları ise aynen Express'e bırakılır.
 - **Varsayılan gizli:** Kişisel veri loglamak açıkça opt-in.
 - **Mevcut log altyapısına uysun:** Varsayılan stdout; `sink` ile pino/winston vb.
