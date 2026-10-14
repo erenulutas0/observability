@@ -86,7 +86,7 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] Ran on an Android 15 emulator via Expo Go 57: five scenarios, six attempts, all joined; results and screenshot in examples/react-native-correlation/results/ — 2026-10-14
 - [x] Fixed: SafeAreaView deprecated in RN 0.86 and overlapping the Android status bar; switched to react-native-safe-area-context — 2026-10-14
 - [ ] Run on a physical phone over a real network, and on iOS
-- [ ] Owner review; merge feat/react-native-demo into main and push
+- [x] Merged into main (fast-forward) and pushed — 2026-10-14
 
 ## Repository
 
@@ -113,3 +113,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — analyze CLI merged into main and pushed. doctor implemented on branch feat/doctor: 40 tests, 199 in total; mutation spot-check 16 of 16 caught. Found and fixed during testing: the per-request timeout was an idle timeout that a trickling server could defeat. Verified against the running demo: all 9 checks pass. Git Bash rewrites Unix-looking arguments; documented in the README.
 - 2026-10-14 — doctor merged into main and pushed. React Native correlation demo on branch feat/react-native-demo: shared correlation module with 16 tests (215 in total across workspaces), Expo SDK 57 app bundled for Android but not run on a device; no emulator image or device was available.
 - 2026-10-14 — Owner approved an emulator. Installed an Android 35 x86_64 emulator image and a dedicated AVD. The app ran in Expo Go; all six attempts of a session joined with the server log. Fixed the SafeAreaView deprecation found on the device.
+- 2026-10-14 — React Native demo merged into main. Emulator data kept off the system drive: AVDs, the system image and the Expo cache live on a data drive, verified by a boot that changed system-drive free space by 0 MB.
