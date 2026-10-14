@@ -7,3 +7,6 @@ bench/results/*.tmp
 
 # owner research notes (mention third-party products); kept local only, see ADR-0002
 TUM_ARASTIRMA.md
+
+# demo and analyze output
+*.jsonl

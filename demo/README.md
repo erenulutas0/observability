@@ -21,6 +21,16 @@ npm run lab:check
 Same, plus assertions on every record. Exits with code 1 if any scenario misbehaves.
 
 ```bash
+node demo/lab.js --log=lab.jsonl
+```
+
+Also writes every delivered record to `lab.jsonl`, which you can then summarize:
+
+```bash
+npx express-observe analyze --slowest 3 lab.jsonl
+```
+
+```bash
 npm run demo
 ```
 

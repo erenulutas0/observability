@@ -5,12 +5,17 @@
 //
 //   node lab.js           print the comparison
 //   node lab.js --check   also assert the expected record shape per scenario; exit code 1 on any mismatch
+//   node lab.js --log=lab.jsonl   also write every delivered record as a JSON line, e.g. for `express-observe analyze`
 
 const http = require('node:http')
 const net = require('node:net')
 const { createApp, HOST, WAIT_BEFORE_HEADERS_MS, SLOW_BODY, L7_RESPONSE_AFTER_MS, SLOW_SINK_MS } = require('./app')
 
+const fs = require('node:fs')
+
 const CHECK = process.argv.includes('--check')
+const LOG_ARG = process.argv.find((a) => a.startsWith('--log='))
+const LOG_FILE = LOG_ARG ? LOG_ARG.slice('--log='.length) : null
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const msSince = (t0) => Number(process.hrtime.bigint() - t0) / 1e6
 const round1 = (n) => Math.round(n * 10) / 10
@@ -254,9 +259,13 @@ function pick (record) {
 
 async function main () {
   const records = []
+  const logStream = LOG_FILE ? fs.createWriteStream(LOG_FILE) : null
   const sinkFailures = []
   const app = createApp({
-    write: (record) => records.push(record),
+    write: (record) => {
+      records.push(record)
+      if (logStream) logStream.write(JSON.stringify(record) + '\n')
+    },
     onSinkError: (err, record) => sinkFailures.push({ err, record })
   })
   const server = await new Promise((resolve) => {
@@ -298,6 +307,7 @@ async function main () {
 
   server.closeAllConnections()
   server.close()
+  if (logStream) await new Promise((resolve) => logStream.end(resolve))
 
   process.stdout.write(`\n${records.length} records delivered, ${sinkFailures.length} sink failures reported, ${duplicates} duplicate records.\n`)
   if (CHECK) {
