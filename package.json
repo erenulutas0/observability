@@ -10,10 +10,11 @@
   "workspaces": [
     "packages/*",
     "demo",
-    "bench"
+    "bench",
+    "examples/react-native-correlation"
   ],
   "scripts": {
-    "test": "npm test --workspace packages/express-observe",
+    "test": "npm test --workspaces --if-present",
     "demo": "npm start --workspace demo",
     "lab": "npm run lab --workspace demo",
     "lab:check": "npm run lab:check --workspace demo",

@@ -10,3 +10,7 @@ TUM_ARASTIRMA.md
 
 # demo and analyze output
 *.jsonl
+
+# Expo local state and bundle checks
+.expo/
+.expo-export-check/
