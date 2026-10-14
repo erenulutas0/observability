@@ -108,7 +108,17 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 ## diagnostic-lab second wave (branch feat/lab-second-wave)
 
 - [x] L3 CPU work blocking concurrent requests (fast requests sent from a worker thread, synchronised with the slow request), L4 serialized vs prebuilt 50,000-item JSON, L5 fast API + 120 ms client work, L6 503 then retry; each with reading/actually lines and --check assertions — 2026-10-14
-- [ ] Owner review; merge feat/lab-second-wave into main and push
+- [x] Merged into main (fast-forward) and pushed — 2026-10-14
+
+## Event-loop delay (branch feat/event-loop-delay)
+
+- [x] ADR-0009 (owner approved): opt-in eventLoop option, record field eventLoopDelayMs after durationMs, process-level meaning — 2026-10-14
+- [x] src/event-loop.js sampler (unref()ed interval, 256-sample ring buffer, look-back plus overdue tick); 6 tests incl. real-socket blocks from a timer and from setImmediate; 4 of 4 deliberate breakages caught in two runs each — 2026-10-14
+- [x] Fixed during testing: the first design assumed the sampler always ticks before waiting requests are handled; a test disproved it, so the overdue tick is included — 2026-10-14
+- [x] analyze: per-group eventLoopDelayMs statistics, blocked count, note, LOOP MAX MS column only when present — 2026-10-14
+- [x] diagnostic-lab enables it; L3 fast records show about 70–78 ms while durationMs is about 0.3 ms — 2026-10-14
+- [x] Cost: default path no measurable change vs main (7 of 12 rounds faster; A-vs-A 8 of 12 in the same session); enabled cost not resolvable on this machine today (median +7 µs, 7 of 12) — 2026-10-14
+- [ ] Owner review; merge feat/event-loop-delay into main and push
 
 ## Repository
 
@@ -119,7 +129,6 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges
 - [ ] analyze: bounded-memory histogram mode for very large logs; per-group slowest; side-by-side comparison of two time windows or releases
-- [ ] Optional event-loop delay in the record (perf_hooks.monitorEventLoopDelay): L3 shows that waiting for a blocked event loop happens before observe() runs and is invisible today; needs a contract decision
 - [ ] Optional OpenTelemetry trace-id correlation
 
 ## History
@@ -137,3 +146,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — Performance work on perf/hot-path: new A/B and micro benchmarks with noise floors; a termination bug fixed; on-finished replaced (kept, clear win); two candidates rejected as inconclusive. 206 package tests passing. Full table: bench/results/micro-2026-10-14/README.md.
 - 2026-10-14 — Express 5 support on feat/express-5: the full suite passes on Express 4.22.3 (208 run, 3 version-skipped) and 5.3.0 (209 run, 2 version-skipped), stable across repeated runs.
 - 2026-10-14 — perf/hot-path and feat/express-5 merged into main. diagnostic-lab second wave on feat/lab-second-wave: L3 shows fast clients waiting about 70 ms for a blocked event loop while their records say about 0.3 ms; stable across repeated runs after synchronising the client worker.
+- 2026-10-14 — lab second wave merged into main. Event-loop delay (ADR-0009) on feat/event-loop-delay: opt-in eventLoopDelayMs closes the L3 blind spot as a process-level signal.

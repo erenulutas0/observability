@@ -71,6 +71,7 @@ Note what is missing: no `42`, no `token=abc`, no headers, no IP.
 | `headerDurationMs` | number \| null | Middleware entry until response headers were written. `null` if they never were |
 | `durationMs` | number | Middleware entry until the response finished or the connection ended |
 | `termination` | `"finished"` \| `"interrupted"` | `finished`: the last byte was handed to the operating system. `interrupted`: the connection ended first |
+| `eventLoopDelayMs` | number | **Only with `eventLoop.enabled`**, placed after `durationMs`. The largest event-loop delay the process saw from shortly before this request until its end. See [Event-loop delay](#event-loop-delay-opt-in) |
 
 Durations use a monotonic clock and have three decimals.
 
@@ -116,6 +117,10 @@ observe({
     sink: null,                   // (record) => void | Promise; default: one JSON line on stdout
     onSinkError: null,            // (err, record) => void; default: rate-limited stderr warning
     extend: null,                 // (req, res) => object; extra fields, opt-in
+  },
+  eventLoop: {
+    enabled: false,               // adds eventLoopDelayMs to every record
+    resolutionMs: 20,             // sampling interval, 5 to 1000
   },
 })
 ```
@@ -187,6 +192,20 @@ Your logger adds its own fields on top of the record. Pino, for example, adds `l
 - A sink that throws, or returns a promise that rejects, never affects the response or later records. The failure goes to `onSinkError(err, record)`. Without one, a single stderr line naming the error class is written at most every 10 seconds; error messages are never printed.
 - The sink runs after the response has ended, so a slow **asynchronous** sink does not delay responses. A sink that blocks synchronously still slows the whole process.
 - There is no buffering, no retry and no flush on exit. Records can be lost when the process exits or the sink fails.
+
+### Event-loop delay (opt-in)
+
+When synchronous work blocks Node's event loop, requests that arrive meanwhile wait **before** `observe()` runs, so their `durationMs` cannot contain that wait. A request can look fast in the log while its client waited the whole block. Enable `eventLoop` to see it:
+
+```js
+app.use(observe({ eventLoop: { enabled: true } }))
+```
+
+- One `unref()`ed timer per middleware instance measures how late each tick fires. Each record gets `eventLoopDelayMs`: the largest delay seen from one interval before the request entered the middleware until it ended, including a tick that is overdue at that moment.
+- It says the **process** was blocked for about that long around this request. It does not say this request waited that long, and it cannot say which code blocked.
+- Timer granularity limits it: on Windows timers are coarse (about 15 ms), so values under about 20 ms carry no information there.
+- `analyze` shows a `LOOP MAX MS` column and a note when records carry the field.
+- Cost: a timer callback every `resolutionMs` and a scan of a few samples per request. A first measurement could not separate it from noise (median +7 µs per request, higher in 7 of 12 rounds, on a noisy machine).
 
 ### Adding fields
 

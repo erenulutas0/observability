@@ -17,6 +17,7 @@ const {
   createDeliver
 } = require('./logger')
 const { compileMounts, trackMatchedRoute, resolveRouteLabel } = require('./route-template')
+const { createEventLoopSampler } = require('./event-loop')
 
 // Per-response state lives under a symbol so it never collides with application properties.
 const kState = Symbol('express-observe.state')
@@ -27,6 +28,7 @@ const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/
 const DEFAULT_REQUEST_ID_HEADER = 'X-Request-Id'
 const DEFAULT_MAX_TIMING_ENTRIES = 16
 const MAX_TIMING_ENTRIES_LIMIT = 64
+const DEFAULT_EVENT_LOOP_RESOLUTION_MS = 20
 const MAX_LABEL_LENGTH = 256
 
 /**
@@ -42,6 +44,10 @@ function observe (options) {
   const warn = createWarn()
   const deliver = config.log.enabled
     ? createDeliver({ sink: config.log.sink, onSinkError: config.log.onSinkError, warn })
+    : null
+  // Optional event-loop delay (ADR-0009): one unref()ed sampler per middleware instance, started on first use.
+  const sampler = config.log.enabled && config.eventLoop.enabled
+    ? createEventLoopSampler({ resolutionMs: config.eventLoop.resolutionMs })
     : null
 
   return function expressObserve (req, res, next) {
@@ -61,7 +67,8 @@ function observe (options) {
       res[kState] = state
       assignRequestId(req, res, state, config.requestId, warn)
       attachHeaderHook(res, state, config.serverTiming, warn)
-      if (deliver !== null) attachAccessLog(req, res, state, config, warn, deliver)
+      if (sampler !== null) sampler.start()
+      if (deliver !== null) attachAccessLog(req, res, state, config, warn, deliver, sampler)
     } catch (err) {
       warn('internal error while preparing request; continuing without full observation', err)
     }
@@ -140,7 +147,7 @@ function onResponseEnd (res, listener) {
  * - interrupted: anything else (the connection ended first). This is an HTTP fact, not evidence of user intent.
  * status is only reported if headers were actually sent; Node's default statusCode 200 is not a response.
  */
-function attachAccessLog (req, res, state, config, warn, deliver) {
+function attachAccessLog (req, res, state, config, warn, deliver, sampler) {
   const getMatchedRoute = trackMatchedRoute(req)
 
   onResponseEnd(res, function onTerminated (finished) {
@@ -150,7 +157,7 @@ function attachAccessLog (req, res, state, config, warn, deliver) {
     try {
       const endedAt = nowNs()
       const headersSent = res.headersSent === true
-      const record = buildRecord({
+      const fields = {
         timestamp: new Date().toISOString(),
         requestId: state.requestId,
         requestIdSource: state.requestIdSource,
@@ -162,7 +169,11 @@ function attachAccessLog (req, res, state, config, warn, deliver) {
         headerDurationMs: state.headersAt === null ? null : elapsedMs(state.startedAt, state.headersAt),
         durationMs: elapsedMs(state.startedAt, endedAt),
         termination: state.finished ? 'finished' : 'interrupted'
-      })
+      }
+      // Largest event-loop lateness from one sampling interval before entry until now (ADR-0009). Added only
+      // when enabled, so the default path builds exactly the same object as before.
+      if (sampler !== null) fields.eventLoopDelayMs = sampler.maxSince(Number(state.startedAt) / 1e6 - sampler.resolutionMs)
+      const record = buildRecord(fields)
       deliver(applyExtension(record, config.log.extend, req, res, warn))
     } catch (err) {
       warn('failed to build access-log record; record dropped', err)
@@ -176,12 +187,18 @@ function attachAccessLog (req, res, state, config, warn, deliver) {
 function normalizeOptions (options) {
   if (options === undefined) options = {}
   assertPlainObject(options, 'options')
-  assertKnownKeys(options, ['service', 'release', 'requestId', 'serverTiming', 'route', 'log'], 'options')
+  assertKnownKeys(options, ['service', 'release', 'requestId', 'serverTiming', 'route', 'log', 'eventLoop'], 'options')
 
   const requestId = section(options, 'requestId', ['header', 'trustIncoming', 'onExistingId'])
   const serverTiming = section(options, 'serverTiming', ['enabled', 'maxEntries'])
   const route = section(options, 'route', ['mounts', 'resolver'])
   const log = section(options, 'log', ['enabled', 'sink', 'onSinkError', 'extend'])
+  const eventLoop = section(options, 'eventLoop', ['enabled', 'resolutionMs'])
+
+  const resolutionMs = eventLoop.resolutionMs ?? DEFAULT_EVENT_LOOP_RESOLUTION_MS
+  if (!Number.isInteger(resolutionMs) || resolutionMs < 5 || resolutionMs > 1000) {
+    throw new TypeError('express-observe: options.eventLoop.resolutionMs must be an integer between 5 and 1000')
+  }
 
   const header = requestId.header ?? DEFAULT_REQUEST_ID_HEADER
   if (typeof header !== 'string' || !HEADER_NAME.test(header)) {
@@ -217,6 +234,7 @@ function normalizeOptions (options) {
       onExistingId
     },
     serverTiming: { enabled: timingEnabled, maxEntries },
+    eventLoop: { enabled: optionalBoolean(eventLoop.enabled, false, 'options.eventLoop.enabled'), resolutionMs },
     route: {
       mounts: compileMounts(route.mounts),
       resolver: optionalFunction(route.resolver, 'options.route.resolver')

@@ -90,6 +90,8 @@ function createApp (options = {}) {
     service: 'diagnostic-lab',
     release: '0.1.0-dev.0',
     route: { mounts: ['/tenants/:tenantId'] },
+    // Optional eventLoopDelayMs (ADR-0009): makes the L3 wait visible as a process-level signal.
+    eventLoop: { enabled: true },
     log: { sink: createLabSink(write), onSinkError: options.onSinkError ?? null }
   }))
 

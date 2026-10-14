@@ -30,6 +30,7 @@ async function child (variant, n) {
   const sink = (record) => { JSON.stringify(record) }
   if (variant === 'ids-timing') app.use(observe({ service: 'bench', log: { enabled: false } }))
   else if (variant === 'full-log') app.use(observe({ service: 'bench', release: '0.1.0-dev.0', log: { sink } }))
+  else if (variant === 'full-log-eventloop') app.use(observe({ service: 'bench', release: '0.1.0-dev.0', log: { sink }, eventLoop: { enabled: true } }))
   else if (variant !== 'baseline') throw new Error(`unknown variant ${variant}`)
   app.get('/users/:id', (req, res) => res.json({ id: req.params.id, ok: true }))
 

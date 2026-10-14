@@ -74,6 +74,9 @@ function interpret (record) {
   }
 
   if (record.status >= 500) notes.push('the server answered with an error; the cause lives in the application\'s own error handling, not in this record')
+  if (typeof record.eventLoopDelayMs === 'number' && record.eventLoopDelayMs >= 50) {
+    notes.push(`the process's event loop was blocked for about ${Math.round(record.eventLoopDelayMs)} ms around this request; clients may have waited that long before this record's clock started, and the record cannot say which code blocked it`)
+  }
 
   const header = record.headerDurationMs
   const total = record.durationMs
@@ -281,15 +284,16 @@ const COMPOSITE_SCENARIOS = [
         lines: [
           `client   /lab/l3/long ${round1(slow.clientAttemptMs)} ms (Server-Timing: ${slow.headers['server-timing']}); 3x /lab/l0: ${fastMs.join(', ')} ms`,
           `record   /lab/l3/long ${JSON.stringify(pick(slowRecord))}`,
-          `record   3x /lab/l0 durationMs: ${fastRecords.map((r) => r && r.durationMs).join(', ')}`,
+          `record   3x /lab/l0 durationMs: ${fastRecords.map((r) => r && r.durationMs).join(', ')}; eventLoopDelayMs: ${fastRecords.map((r) => r && r.eventLoopDelayMs).join(', ')}`,
           `reading  /lab/l0: ${interpret(fastRecords[0]).join('; ')}`,
-          'actually the fast requests waited for the blocked event loop before observe() even ran. No server record can show that wait; only the client saw it.'
+          'actually the fast requests waited for the blocked event loop before observe() even ran. durationMs cannot contain that wait; eventLoopDelayMs (enabled in this demo) shows that the process was blocked, which is the only server-side hint.'
         ],
         failures: [
           is(slowRecord && slowRecord.headerDurationMs >= CPU_WORK_MS.long * 0.9, 'slow record covers the CPU work'),
           is(/cpu;dur=/.test(slow.headers['server-timing'] ?? ''), 'Server-Timing names the CPU work'),
           is(Math.min(...fastMs) >= CPU_WORK_MS.long * 0.4, 'fast clients waited for the blocked event loop'),
-          is(fastRecords.every((r) => r && r.durationMs < CPU_WORK_MS.long * 0.25), 'fast records look fast: the wait is invisible to them')
+          is(fastRecords.every((r) => r && r.durationMs < CPU_WORK_MS.long * 0.25), 'fast records look fast: the wait is not in durationMs'),
+          is(fastRecords.every((r) => r && r.eventLoopDelayMs >= CPU_WORK_MS.long * 0.5), 'eventLoopDelayMs shows the block on the fast records')
         ]
       }
     }
@@ -411,8 +415,10 @@ function printScenario (scenario, result, record, failure, failures) {
 }
 
 function pick (record) {
-  const { route, status, headerDurationMs, durationMs, termination } = record
-  return { route, status, headerDurationMs, durationMs, termination }
+  const { route, status, headerDurationMs, durationMs, eventLoopDelayMs, termination } = record
+  return eventLoopDelayMs === undefined
+    ? { route, status, headerDurationMs, durationMs, termination }
+    : { route, status, headerDurationMs, durationMs, eventLoopDelayMs, termination }
 }
 
 async function main () {
