@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import * as Crypto from 'expo-crypto'
 import { createTracedClient, formatAttemptLine } from '../correlation'
@@ -21,6 +22,14 @@ const now = () => globalThis.performance.now()
 const fmt = (n) => (n === null || n === undefined ? '-' : `${n.toFixed(1)} ms`)
 
 export default function App () {
+  return (
+    <SafeAreaProvider>
+      <CorrelationScreen />
+    </SafeAreaProvider>
+  )
+}
+
+function CorrelationScreen () {
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL)
   const [runs, setRuns] = useState([])
   const [busy, setBusy] = useState(false)
