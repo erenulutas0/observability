@@ -276,6 +276,27 @@ describe('access log: interrupted connections (real sockets)', () => {
     }
   })
 
+  test('a client that disconnected before observe() even ran is still logged once, as interrupted', async () => {
+    const collector = collectingSink()
+    const app = express()
+    // A slow earlier middleware (think body parsing or auth) lets the client go away before observe() runs.
+    app.use((req, res, next) => setTimeout(next, 150))
+    app.use(observe({ log: { sink: collector.sink } }))
+    app.get('/late', (req, res) => res.send('too late'))
+    const { port, close } = await listen(app)
+    try {
+      await abortAfter(port, '/late', 30)
+      const [record] = await collector.waitFor(1, 3000)
+      // Route and status depend on whether the handler ran before the record was built; the contract here is
+      // that the request is not lost and is not reported as finished.
+      expect(record.termination).toBe('interrupted')
+      await sleep(200)
+      expect(await collector.settle()).toHaveLength(1)
+    } finally {
+      await close()
+    }
+  })
+
   test('a handler that never responds (e.g. an unhandled async rejection in Express 4) is logged once the client gives up', async () => {
     const { app, waitFor } = setup((a) => {
       a.get('/hang', () => { /* never responds */ })

@@ -60,7 +60,7 @@ Facts the design relies on (Node 22 / Express 4 behaviour):
 
 - `res.headersSent` flips to `true` inside `writeHead`. Every Express response helper (`send`, `json`, `end`, `write`, `sendFile`, `redirect`) ends up in `writeHead`, either explicitly or via `_implicitHeader`. That is the last safe moment to add headers.
 - `finish` means the last chunk was handed to the kernel. It does **not** mean the client received it.
-- `close` fires on every response in modern Node, including successful keep-alive responses. Interruption is detected as **`close` observed while `res.writableFinished === false`**, never as "close happened".
+- `close` fires on every response in modern Node, including successful keep-alive responses. Interruption is detected as **the response ended without a `finish` event**, never as "close happened". `res.writableFinished` is not used for this: once the socket is gone it can read `true` for a response that was ended after the client had already disconnected.
 - `req.aborted` and the `aborted` event are deprecated (Node DEP0156) and are not used.
 - Express 4 wraps synchronous handler execution in `try/catch` and forwards to `next(err)`. **Rejected promises from `async` handlers are not caught** by Express 4; the request hangs until the client gives up, and the process may see an `unhandledRejection`. Express 5 fixes this. We document it; we cannot fix it from inside a middleware without wrapping user handlers.
 
@@ -156,7 +156,8 @@ Field rules:
 
 - `timestamp` is the wall-clock time at termination (ISO 8601, UTC). Durations come from the monotonic clock and are rounded to 3 decimals.
 - `status` is `res.statusCode` **only if `res.headersSent`**; otherwise `null`. Node defaults `statusCode` to 200 before anything is sent, and an interrupted request must not look like a success.
-- `termination` is `"finished"` when `res.writableFinished === true`, otherwise `"interrupted"`. Nothing else is inferred from `close`. An interruption is an HTTP fact, not evidence that the user cancelled on purpose.
+- `termination` is `"finished"` when the response emitted `finish` (the last chunk was handed to the OS), otherwise `"interrupted"`. Nothing else is inferred from `close`. An interruption is an HTTP fact, not evidence that the user cancelled on purpose.
+- A client that disconnects before `observe()` even runs (for example during a slow earlier middleware) is still logged once, as `interrupted`. `status` and `route` may then reflect a response the handler wrote to a closed connection.
 - `headerDurationMs` = middleware entry -> header flush (the same number as the `app` Server-Timing entry). `null` if headers were never sent. It separates a *late-headers* request from a *slow-body* request with the same total time. See section 9.
 - `durationMs` = middleware entry -> termination. Time Node spends parsing the request head before Express runs is not included.
 - `service` and `release` come from options; default `null`. No env-var fallback in v0.1.

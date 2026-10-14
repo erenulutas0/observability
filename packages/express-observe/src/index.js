@@ -54,6 +54,7 @@ function observe (options) {
       headersAt: null,
       requestId: null,
       requestIdSource: null,
+      finished: false,
       logged: false
     }
 
@@ -109,12 +110,16 @@ function attachHeaderHook (res, state, settings, warn) {
  * Emit exactly one record when the response terminates.
  *
  * on-finished fires once, on the first of: response 'finish', socket 'close', socket 'error'.
- * - finished:    res.writableFinished === true (the last chunk was handed to the OS; not proof of client receipt)
+ * - finished:    the response emitted 'finish' (the last chunk was handed to the OS; not proof of client receipt)
  * - interrupted: anything else (the connection ended first). This is an HTTP fact, not evidence of user intent.
  * status is only reported if headers were actually sent; Node's default statusCode 200 is not a response.
+ *
+ * Termination is decided by the 'finish' event, not by res.writableFinished: once the socket is gone,
+ * writableFinished can read true for a response that was ended after the client had already disconnected.
  */
 function attachAccessLog (req, res, state, config, warn, deliver) {
   const getMatchedRoute = trackMatchedRoute(req)
+  res.once('finish', () => { state.finished = true })
 
   onFinished(res, function onTerminated () {
     if (state.logged) return
@@ -133,7 +138,7 @@ function attachAccessLog (req, res, state, config, warn, deliver) {
         status: headersSent ? res.statusCode : null,
         headerDurationMs: state.headersAt === null ? null : elapsedMs(state.startedAt, state.headersAt),
         durationMs: elapsedMs(state.startedAt, endedAt),
-        termination: res.writableFinished === true ? 'finished' : 'interrupted'
+        termination: state.finished ? 'finished' : 'interrupted'
       })
       deliver(applyExtension(record, config.log.extend, req, res, warn))
     } catch (err) {
