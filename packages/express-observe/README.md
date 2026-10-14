@@ -71,7 +71,7 @@ Note what is missing: no `42`, no `token=abc`, no headers, no IP.
 | `headerDurationMs` | number \| null | Middleware entry until response headers were written. `null` if they never were |
 | `durationMs` | number | Middleware entry until the response finished or the connection ended |
 | `termination` | `"finished"` \| `"interrupted"` | `finished`: the last byte was handed to the operating system. `interrupted`: the connection ended first |
-| `eventLoopDelayMs` | number | **Only with `eventLoop.enabled`**, placed after `durationMs`. The largest event-loop delay the process saw from shortly before this request until its end. See [Event-loop delay](#event-loop-delay-opt-in) |
+| `eventLoopDelayMs` | number \| null | **Only with `eventLoop.enabled`**, placed after `durationMs`. The largest event-loop delay the process saw from shortly before this request until its end; `null` while the sampler has no measurement yet. See [Event-loop delay](#event-loop-delay-opt-in) |
 
 Durations use a monotonic clock and have three decimals.
 
@@ -189,6 +189,7 @@ app.use(observe({ log: { sink: (record) => logger.info(record) } }))
 
 Your logger adds its own fields on top of the record. Pino, for example, adds `level`, `time`, `pid` and `hostname` by default; configure its `base` option if you do not want the host name in every line.
 
+- Each record is handed to the sink **once**. That is a delivery attempt, not delivery: a sink returning (or its promise resolving) does not mean a remote log platform has stored the record.
 - A sink that throws, or returns a promise that rejects, never affects the response or later records. The failure goes to `onSinkError(err, record)`. Without one, a single stderr line naming the error class is written at most every 10 seconds; error messages are never printed.
 - The sink runs after the response has ended, so a slow **asynchronous** sink does not delay responses. A sink that blocks synchronously still slows the whole process.
 - There is no buffering, no retry and no flush on exit. Records can be lost when the process exits or the sink fails.
@@ -201,8 +202,10 @@ When synchronous work blocks Node's event loop, requests that arrive meanwhile w
 app.use(observe({ eventLoop: { enabled: true } }))
 ```
 
-- One `unref()`ed timer per middleware instance measures how late each tick fires. Each record gets `eventLoopDelayMs`: the largest delay seen from one interval before the request entered the middleware until it ended, including a tick that is overdue at that moment.
-- It says the **process** was blocked for about that long around this request. It does not say this request waited that long, and it cannot say which code blocked.
+- One `unref()`ed timer per middleware instance measures how late each tick fires. Each record gets `eventLoopDelayMs`: the **maximum** delay seen from one interval before the request entered the middleware until it ended, including a tick that is overdue at that moment. It does not use `perf_hooks.monitorEventLoopDelay`.
+- Samples live in a ring buffer of the last 256 ticks (about 5 s at the default 20 ms). Nothing is reset when a request ends, so concurrent requests read the same samples without affecting each other, and several of them can report the same block.
+- The value is `null`, not `0`, while the sampler has not completed a tick yet (typically the first request after start-up), because a block before the sampler started cannot be seen. Once it has a baseline, `0` means no delay above timer granularity was seen.
+- It says the **process** was blocked for about that long around this request. In other words: it is the event-loop delay observed in this time window; it does not prove how long this request itself caused or suffered, and it cannot say which code blocked. It is never added to `durationMs` or subtracted from anything.
 - Timer granularity limits it: on Windows timers are coarse (about 15 ms), so values under about 20 ms carry no information there.
 - `analyze` shows a `LOOP MAX MS` column and a note when records carry the field.
 - Cost: a timer callback every `resolutionMs` and a scan of a few samples per request. A first measurement could not separate it from noise (median +7 µs per request, higher in 7 of 12 rounds, on a noisy machine).
@@ -276,7 +279,7 @@ PASS  not-found-path     answered 404 with X-Request-Id
 PASS  log-record-count   5 request(s), one record each
 WARN  route-label        see details
                          - GET /api/items/7: answered 200 but the route is null. If a router serves it, add the router's mount template to route.mounts; if a middleware answered, set res.locals.observeRoute.
-PASS  privacy-markers    markers not found in the log
+PASS  privacy-markers    this run's markers not found in the log (not a general privacy check)
 
 Result: 1 failure(s), 1 warning(s).
 ```
@@ -290,7 +293,7 @@ The output above is illustrative. What it checks:
 | `server-timing` | a missing or malformed header |
 | `log-record-count` (`--log`) | records missing, or written twice by two sinks |
 | `route-label` (`--log`) | routers missing from `route.mounts`, raw URLs used as labels |
-| `privacy-markers` (`--log`) | query strings or headers reaching the log through `extend` or another logger |
+| `privacy-markers` (`--log`) | this run's own random markers (sent in a query parameter and a header) reaching the log, for example through `extend` or another logger. A pass means only that these markers were not found; it is not proof that the log contains no personal data |
 
 Safety limits, enforced before any request is sent:
 
@@ -298,6 +301,8 @@ Safety limits, enforced before any request is sent:
 - Only `GET`, with no body, cookies or credentials, and redirects are not followed. Pass only paths that are safe to request repeatedly.
 - At most 10 paths and 22 requests, one at a time, each with a hard time limit (`--timeout`, default 5 s). Response bodies are read up to 64 KiB.
 - Requests carry `User-Agent: express-observe-doctor/<version>` and random marker values in a query parameter and a header. The log file is only read; its lines are never printed.
+
+What each status means: `PASS` the check ran and found nothing; `FAIL` and `WARN` it found something, listed under the check; `INFO` a fact, not a judgement; `SKIP` the check was **not performed or was inconclusive** (no `--log`, no response to inspect, no probe that could be matched to a record). Doctor only sees HTTP responses and, with `--log`, the lines of that one file; it cannot see other sinks, other files or other processes.
 
 Other options: `--header` for a custom request ID header, `--wait` before reading a buffered log, `--json`. Exit codes: `0` no failures (warnings allowed), `1` at least one failure, `2` usage error or refused target.
 
@@ -318,7 +323,7 @@ What you add yourself through `extend`, `res.locals.observeRoute`, `route.resolv
 
 ## Known limitations
 
-- **Express 4 does not catch rejected promises from `async` handlers** (Express 5 does, and the request is then logged as a finished 500). Such a request hangs until the client gives up; only then is a record written, as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 fixes this.
+- **Express 4 does not catch rejected promises from `async` handlers.** What happens next depends on Node, not on this package. With Node 22's default (`--unhandled-rejections=throw`) the rejection is unhandled and **the process exits**: no record is written, and every request open in that process is cut off. If the application or its runtime keeps the process alive (for example `--unhandled-rejections=warn` or its own `unhandledRejection` handler), the request stays open until the client gives up and is then logged as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 forwards a rejected promise *returned by a handler or middleware* to the error handler, and the request is logged as a finished 500; promises the handler does not return (timers, background work) are not covered. express-observe installs no global error handlers and is not an error-handling solution. Each case is tested in a separate Node process (`test/async-rejection-process.test.js`).
 - **Express's default error handler prints the stack to stderr** (4 and 5) whenever `NODE_ENV` is not `test`. That output comes from Express, not from this package. Install your own error middleware if stacks must stay out of stderr.
 - **No delivery guarantee.** See Sinks.
 - **`durationMs` starts when the middleware runs.** Connection setup, TLS and request-header parsing happen earlier and are not included.

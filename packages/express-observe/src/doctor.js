@@ -417,7 +417,8 @@ function evaluate (options, probes, log) {
     privacy.worse('fail', `the random markers sent in the query string and in ${MARKER_HEADER} appear in ${log.markerHits} log line(s). Something (log.extend, another logger, a proxy log) writes query strings or headers into this file.`)
     privacy.summary = 'request data leaks into the log'
   } else {
-    privacy.summary = 'markers not found in the log'
+    // Narrow on purpose: only this run's own markers were looked for. Not a general privacy verdict.
+    privacy.summary = "this run's markers not found in the log (not a general privacy check)"
   }
   checks.push(privacy)
   return checks

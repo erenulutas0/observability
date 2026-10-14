@@ -11,7 +11,7 @@ As of Phase 5 (2026-10-14): the middleware, the diagnostic-lab demo (v0.1 scenar
 1. Assigns a request ID (`req.id`, `X-Request-Id` response header).
 2. Starts a monotonic clock and exposes `res.serverTiming` for custom timers.
 3. Writes a `Server-Timing` header right before response headers are flushed.
-4. Emits exactly one structured access-log record when the response terminates (finished or interrupted).
+4. Builds one structured access-log record when the response terminates (finished or interrupted) and hands it to the sink once. That is one delivery attempt, not durable delivery: a sink returning (or resolving) does not mean a remote log platform accepted the record, and records can be lost when the process dies or the sink fails.
 
 It is a building block, not a platform: no agent, no exporter, no dashboard. Output is a plain object handed to a sink (default: one JSON line on stdout).
 
@@ -63,7 +63,7 @@ Facts the design relies on (Node 22 / Express 4 behaviour):
 - `finish` means the last chunk was handed to the kernel. It does **not** mean the client received it.
 - `close` fires on every response in modern Node, including successful keep-alive responses. Interruption is detected as **the response ended without a `finish` event**, never as "close happened". `res.writableFinished` is not used for this: once the socket is gone it can read `true` for a response that was ended after the client had already disconnected.
 - `req.aborted` and the `aborted` event are deprecated (Node DEP0156) and are not used.
-- Express 4 wraps synchronous handler execution in `try/catch` and forwards to `next(err)`. **Rejected promises from `async` handlers are not caught** by Express 4; the request hangs until the client gives up, and the process may see an `unhandledRejection`. Express 5 fixes this. We document it; we cannot fix it from inside a middleware without wrapping user handlers.
+- Express 4 wraps synchronous handler execution in `try/catch` and forwards to `next(err)`. **Rejected promises from `async` handlers are not caught** by Express 4. With Node 22's default `--unhandled-rejections=throw` the process exits (no record, every open request cut off); if the process is kept alive (`warn` mode or an application handler), the request stays open until the client gives up. Express 5 forwards rejections of promises that handlers *return*; promises they do not return are not covered. The middleware installs no global handlers and does not try to fix this; each case is tested in a child process (`test/async-rejection-process.test.js`).
 
 ## 4. Component design
 
@@ -163,7 +163,7 @@ Field rules:
 - `durationMs` = middleware entry -> termination. Time Node spends parsing the request head before Express runs is not included.
 - `service` and `release` come from options; default `null`. No env-var fallback in v0.1.
 - `route` per section 4.3; `null` when unknown.
-- `eventLoopDelayMs` (only with `eventLoop.enabled`, after `durationMs`): the largest event-loop lateness from one sampling interval before middleware entry until the record is built, including the currently overdue tick. A process-level signal for the wait that happens before `observe()` runs (ADR-0009).
+- `eventLoopDelayMs` (only with `eventLoop.enabled`, after `durationMs`): the largest event-loop lateness from one sampling interval before middleware entry until the record is built, including the currently overdue tick. `null` while the sampler has no measurement yet. A process-level signal for the wait that happens before `observe()` runs; it does not prove how long the request itself waited (ADR-0009 and its addendum).
 - The record is built from an explicit field list. Nothing is copied from `req` or `res` wholesale.
 
 Never logged by the middleware: request/response bodies, raw URL and query string, request/response headers, cookies, IP addresses, user identifiers, error messages and stack traces. A sentinel-based test plants each of these in a request and checks stdout and stderr.
@@ -184,7 +184,7 @@ Sink contract:
 - Application errors: `next(err)` reaches the application's error middleware or Express's `finalhandler` unchanged. The middleware never touches the error object. Logged as `status: 500` (or whatever the handler sent), `termination: "finished"`.
 - `next(err)` after headers were sent: Express destroys the socket. Logged as `termination: "interrupted"` with the status that was actually sent.
 - Client disconnect before headers: logged as `interrupted`, `status: null`, `headerDurationMs: null`. If the handler responds later, no second record appears.
-- A handler that never responds (for example an unhandled rejection in an Express 4 `async` handler) produces no record until the connection closes; then it is logged as `interrupted`.
+- A handler that never responds produces no record until the connection closes; then it is logged as `interrupted`. An Express 4 `async` handler that rejects is such a handler only if the process survives the unhandled rejection (see section 3).
 - The middleware's own failures (route resolver, extension, sink, record building) are caught and reported through the rate-limited warning or `onSinkError`. They never call `next(err)` and never throw into the request pipeline.
 - Headers after `headersSent`: header writes happen either at middleware entry behind a `headersSent` check or inside the `on-headers` hook, which runs before the flush.
 - Outside our control: Express 4's default error handler prints the error stack to stderr when `NODE_ENV` is not `test`. Applications that must keep stacks out of stderr need their own error middleware.
