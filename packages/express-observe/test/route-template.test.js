@@ -1,0 +1,224 @@
+'use strict'
+
+const express = require('express')
+const request = require('supertest')
+const observe = require('../src')
+const { collectingSink } = require('./helpers/records')
+
+/** Run one request and return its record. */
+async function routeFor (configure, path, options = {}) {
+  const collector = collectingSink()
+  const app = express()
+  app.use(observe({ ...options, log: { sink: collector.sink } }))
+  configure(app)
+  await request(app).get(path)
+  const [record] = await collector.waitFor(1)
+  return record
+}
+
+/** The serialized record must not contain any concrete path value used in the request. */
+function expectNoValues (record, values) {
+  const json = JSON.stringify(record)
+  for (const value of values) expect(json).not.toContain(value)
+}
+
+function postsRouter () {
+  const router = express.Router()
+  router.get('/', (req, res) => res.send('list'))
+  router.get('/:postId', (req, res) => res.send('one'))
+  return router
+}
+
+describe('route templates: top-level routes', () => {
+  test('a parameterized route is logged as its template, never the concrete path', async () => {
+    const record = await routeFor((app) => app.get('/users/:id', (req, res) => res.send('ok')), '/users/48151623')
+    expect(record.route).toBe('/users/:id')
+    expectNoValues(record, ['48151623'])
+  })
+
+  test('several params and an inline regex constraint are kept as written', async () => {
+    const record = await routeFor(
+      (app) => app.get('/orgs/:orgId/files/:name(\\w+)', (req, res) => res.send('ok')),
+      '/orgs/77001/files/report'
+    )
+    expect(record.route).toBe('/orgs/:orgId/files/:name(\\w+)')
+    expectNoValues(record, ['77001', 'report'])
+  })
+
+  test('a RegExp route has no safe template: null', async () => {
+    const record = await routeFor((app) => app.get(/^\/re\/\d+$/, (req, res) => res.send('ok')), '/re/90210')
+    expect(record.route).toBeNull()
+    expectNoValues(record, ['90210'])
+  })
+
+  test('an array route has no single template: null', async () => {
+    const record = await routeFor((app) => app.get(['/a/:x', '/b/:x'], (req, res) => res.send('ok')), '/a/31337')
+    expect(record.route).toBeNull()
+  })
+
+  test('a response produced by plain middleware (no route matched) is null', async () => {
+    const record = await routeFor((app) => app.use('/health', (req, res) => res.send('ok')), '/health')
+    expect(record.route).toBeNull()
+  })
+
+  test('query strings never reach the route', async () => {
+    const record = await routeFor(
+      (app) => app.get('/search', (req, res) => res.send('ok')),
+      '/search?q=private-term&token=abc123'
+    )
+    expect(record.route).toBe('/search')
+    expectNoValues(record, ['private-term', 'abc123'])
+  })
+})
+
+describe('route templates: nested routers', () => {
+  test('a router at a parameterized mount without mounts config yields null (baseUrl is concrete)', async () => {
+    const record = await routeFor(
+      (app) => app.use('/users/:userId/posts', postsRouter()),
+      '/users/5550123/posts/8675309'
+    )
+    expect(record.route).toBeNull()
+    expectNoValues(record, ['5550123', '8675309'])
+  })
+
+  test('the same request with the mount template configured yields the full template', async () => {
+    const record = await routeFor(
+      (app) => app.use('/users/:userId/posts', postsRouter()),
+      '/users/5550123/posts/8675309',
+      { route: { mounts: ['/users/:userId/posts'] } }
+    )
+    expect(record.route).toBe('/users/:userId/posts/:postId')
+    expectNoValues(record, ['5550123', '8675309'])
+  })
+
+  test("a router's '/' route is labelled with the mount template, without a trailing slash", async () => {
+    const record = await routeFor(
+      (app) => app.use('/users/:userId/posts', postsRouter()),
+      '/users/5550123/posts',
+      { route: { mounts: ['/users/:userId/posts'] } }
+    )
+    expect(record.route).toBe('/users/:userId/posts')
+  })
+
+  test('a static mount also needs a mounts entry; without it the label is null', async () => {
+    const configure = (app) => app.use('/api', postsRouter())
+    expect((await routeFor(configure, '/api/12')).route).toBeNull()
+    expect((await routeFor(configure, '/api/12', { route: { mounts: ['/api'] } })).route).toBe('/api/:postId')
+  })
+
+  test('literal segments match case-insensitively, like Express 4 routing; the template spelling is logged', async () => {
+    const record = await routeFor(
+      (app) => app.use('/api', postsRouter()),
+      '/API/12',
+      { route: { mounts: ['/api'] } }
+    )
+    expect(record.route).toBe('/api/:postId')
+  })
+
+  test('with several same-length mount templates, only the one whose literals match is used', async () => {
+    const configure = (app) => {
+      app.use('/v1', postsRouter())
+      app.use('/v2', postsRouter())
+      app.use('/v3', postsRouter())
+    }
+    const options = { route: { mounts: ['/v1', '/v2'] } }
+    expect((await routeFor(configure, '/v2/12', options)).route).toBe('/v2/:postId')
+    expect((await routeFor(configure, '/v3/12', options)).route).toBeNull()
+  })
+
+  test('two levels of nesting need the full mount path', async () => {
+    const configure = (app) => {
+      const teams = express.Router()
+      teams.use('/teams/:teamId', postsRouter())
+      app.use('/orgs/:orgId', teams)
+    }
+    const partial = await routeFor(configure, '/orgs/1001/teams/2002/3003', { route: { mounts: ['/orgs/:orgId'] } })
+    expect(partial.route).toBeNull()
+
+    const full = await routeFor(configure, '/orgs/1001/teams/2002/3003', {
+      route: { mounts: ['/orgs/:orgId', '/orgs/:orgId/teams/:teamId'] }
+    })
+    expect(full.route).toBe('/orgs/:orgId/teams/:teamId/:postId')
+    expectNoValues(full, ['1001', '2002', '3003'])
+  })
+
+  test('next(err) out of a nested router keeps the nested label (baseUrl is captured at match time)', async () => {
+    const record = await routeFor((app) => {
+      const router = express.Router()
+      router.get('/items/:itemId', (req, res, next) => next(new Error('synthetic failure')))
+      app.use('/api', router)
+      app.use((err, req, res, _next) => res.status(500).send('error'))
+    }, '/api/items/7', { route: { mounts: ['/api'] } })
+    expect(record).toMatchObject({ status: 500, route: '/api/items/:itemId' })
+  })
+})
+
+describe('route templates: explicit labels', () => {
+  test('res.locals.observeRoute overrides automatic detection', async () => {
+    const record = await routeFor((app) => {
+      app.use('/legacy', (req, res) => {
+        res.locals.observeRoute = '/legacy/*'
+        res.send('ok')
+      })
+    }, '/legacy/anything/123')
+    expect(record.route).toBe('/legacy/*')
+  })
+
+  test('route.resolver can label requests; returning a non-string falls back to automatic detection', async () => {
+    const resolver = (req) => (req.baseUrl === '/static' ? '/static/*' : undefined)
+    const configure = (app) => {
+      app.use('/static', (req, res) => res.send('file'))
+      app.get('/users/:id', (req, res) => res.send('ok'))
+    }
+    expect((await routeFor(configure, '/static/a.css', { route: { resolver } })).route).toBe('/static/*')
+    expect((await routeFor(configure, '/users/1', { route: { resolver } })).route).toBe('/users/:id')
+  })
+
+  test('res.locals.observeRoute wins over route.resolver', async () => {
+    const record = await routeFor((app) => {
+      app.get('/x', (req, res) => {
+        res.locals.observeRoute = '/from-locals'
+        res.send('ok')
+      })
+    }, '/x', { route: { resolver: () => '/from-resolver' } })
+    expect(record.route).toBe('/from-locals')
+  })
+
+  test('a throwing resolver falls back to automatic detection and does not affect the response', async () => {
+    const stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      const record = await routeFor(
+        (app) => app.get('/users/:id', (req, res) => res.send('ok')),
+        '/users/1',
+        { route: { resolver: () => { throw new Error('resolver bug') } } }
+      )
+      expect(record).toMatchObject({ status: 200, route: '/users/:id' })
+    } finally {
+      stderr.mockRestore()
+    }
+  })
+
+  test('labels that are not short printable strings are ignored', async () => {
+    const record = await routeFor((app) => {
+      app.get('/users/:id', (req, res) => {
+        res.locals.observeRoute = 'line\nbreak'
+        res.send('ok')
+      })
+    }, '/users/1')
+    expect(record.route).toBe('/users/:id')
+  })
+})
+
+describe('route options validation', () => {
+  test.each([
+    ['mounts not an array', { mounts: '/api' }],
+    ['mount without leading slash', { mounts: ['api'] }],
+    ['wildcard mount', { mounts: ['/files/*'] }],
+    ['optional param mount', { mounts: ['/a/:b?'] }],
+    ['root mount', { mounts: ['/'] }],
+    ['resolver not a function', { resolver: '/x' }],
+    ['unknown route key', { strict: true }]
+  ])('throws for %s', (_label, route) => {
+    expect(() => observe({ route })).toThrow(TypeError)
+  })
+})
