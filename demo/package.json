@@ -1,0 +1,19 @@
+{
+  "name": "express-observe-demo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "diagnostic-lab: reproduces the same symptom through different mechanisms and shows what express-observe records",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node app.js",
+    "lab": "node lab.js",
+    "lab:check": "node lab.js --check"
+  },
+  "dependencies": {
+    "express": "4.22.3",
+    "express-observe": "0.1.0-dev.0"
+  }
+}
