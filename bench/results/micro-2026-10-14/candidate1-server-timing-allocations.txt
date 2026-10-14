@@ -1,0 +1,51 @@
+micro A/B: A = 249bec8 (249bec8), B = 249bec8 (249bec8) again, 12 rounds x 40000 requests
+  round 1 ids-timing A 73.45 µs  B 73.85 µs
+  round 2 ids-timing A 71.13 µs  B 72.65 µs
+  round 3 ids-timing A 66.38 µs  B 68.38 µs
+  round 4 ids-timing A 69.93 µs  B 67.2 µs
+  round 5 ids-timing A 73.83 µs  B 66.8 µs
+  round 6 ids-timing A 77.75 µs  B 77.72 µs
+  round 7 ids-timing A 71.85 µs  B 78.13 µs
+  round 8 ids-timing A 73.45 µs  B 70.72 µs
+  round 9 ids-timing A 70.3 µs  B 68.75 µs
+  round 10 ids-timing A 70.68 µs  B 76.55 µs
+  round 11 ids-timing A 77.35 µs  B 70.3 µs
+  round 12 ids-timing A 71.9 µs  B 67.95 µs
+micro A/B — A = 249bec8 (249bec8), B = 249bec8 (249bec8) again; 12 rounds x 40000 requests; CPU µs per request, in-process, no I/O
+
+| Variant | A | B | median paired diff | B lower in |
+|---|---|---|---|---|
+| ids-timing | 71.88 | 70.51 | -0.79 µs (-1.1%) | 7 of 12 |
+
+micro A/B: A = 249bec8 (249bec8), B = working tree, 12 rounds x 40000 requests
+  round 1 ids-timing A 70.33 µs  B 69.93 µs
+  round 1 full-log   A 91.78 µs  B 92.58 µs
+  round 2 ids-timing A 66.8 µs  B 67.2 µs
+  round 2 full-log   A 95.33 µs  B 91.83 µs
+  round 3 ids-timing A 80.47 µs  B 69.93 µs
+  round 3 full-log   A 92.55 µs  B 83.2 µs
+  round 4 ids-timing A 70.7 µs  B 73.8 µs
+  round 4 full-log   A 92.55 µs  B 85.53 µs
+  round 5 ids-timing A 75.78 µs  B 72.28 µs
+  round 5 full-log   A 98.43 µs  B 90.23 µs
+  round 6 ids-timing A 65.63 µs  B 65.25 µs
+  round 6 full-log   A 84.38 µs  B 89.08 µs
+  round 7 ids-timing A 76.55 µs  B 64.05 µs
+  round 7 full-log   A 92.95 µs  B 89.85 µs
+  round 8 ids-timing A 92.18 µs  B 66.4 µs
+  round 8 full-log   A 96.1 µs  B 102.75 µs
+  round 9 ids-timing A 74.63 µs  B 75.4 µs
+  round 9 full-log   A 96.85 µs  B 92.18 µs
+  round 10 ids-timing A 75 µs  B 67.6 µs
+  round 10 full-log   A 100.43 µs  B 105.85 µs
+  round 11 ids-timing A 74.6 µs  B 72.65 µs
+  round 11 full-log   A 94.15 µs  B 106.65 µs
+  round 12 ids-timing A 79.3 µs  B 77.33 µs
+  round 12 full-log   A 130.1 µs  B 118.78 µs
+micro A/B — A = 249bec8 (249bec8), B = working tree; 12 rounds x 40000 requests; CPU µs per request, in-process, no I/O
+
+| Variant | A | B | median paired diff | B lower in |
+|---|---|---|---|---|
+| ids-timing | 74.81 | 69.93 | -1.96 µs (-2.62%) | 9 of 12 |
+| full-log | 94.74 | 92 | -3.3 µs (-3.48%) | 7 of 12 |
+exit=0

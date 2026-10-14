@@ -1,0 +1,161 @@
+{
+  "environment": {
+    "date": "2026-10-14T14:06:21.862Z",
+    "nodeVersion": "v22.23.2",
+    "expressVersion": "4.22.3",
+    "expressObserveVersion": "0.1.0-dev.0",
+    "autocannonVersion": "8.0.0",
+    "pinoHttpVersion": "11.0.0",
+    "pinoVersion": "10.4.0",
+    "os": "Windows_NT 10.0.26200 (win32 x64)",
+    "osVersion": "Windows 11 Pro",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i5-12500",
+    "logicalCpus": 12,
+    "totalMemGb": 63.7,
+    "powerPlan": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Yüksek performans)",
+    "sourceCommit": "249bec8",
+    "workingTreeDirty": true
+  },
+  "config": {
+    "aRef": "249bec8",
+    "same": false,
+    "variants": [
+      "full-log"
+    ],
+    "rounds": 6,
+    "durationSec": 10,
+    "warmupSec": 3,
+    "connections": 50,
+    "pipelining": 1
+  },
+  "a": {
+    "label": "249bec8 (249bec8)"
+  },
+  "b": {
+    "label": "working tree"
+  },
+  "rows": [
+    {
+      "variant": "full-log",
+      "aCpuUsPerReq": 246.26,
+      "bCpuUsPerReq": 237.96,
+      "medianPairedDiffUs": -6.14,
+      "medianPairedDiffPct": -2.5,
+      "roundsBLower": 4,
+      "rounds": 6,
+      "aRps": 4221.54,
+      "bRps": 4174.77,
+      "problems": []
+    }
+  ],
+  "runs": [
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 1,
+      "cpuUsPerReq": 262.78,
+      "rps": 4044.46,
+      "p99": 72.37,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 1,
+      "cpuUsPerReq": 236.34,
+      "rps": 4474,
+      "p99": 65.35,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 2,
+      "cpuUsPerReq": 238.83,
+      "rps": 4295.82,
+      "p99": 71.42,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 2,
+      "cpuUsPerReq": 248.55,
+      "rps": 3760.9,
+      "p99": 88.44,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 3,
+      "cpuUsPerReq": 227.47,
+      "rps": 4410.73,
+      "p99": 81.59,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 3,
+      "cpuUsPerReq": 237.09,
+      "rps": 4094.1,
+      "p99": 82.6,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 4,
+      "cpuUsPerReq": 230.94,
+      "rps": 4116,
+      "p99": 84.64,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 4,
+      "cpuUsPerReq": 246.29,
+      "rps": 4195.61,
+      "p99": 78.69,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 5,
+      "cpuUsPerReq": 246.23,
+      "rps": 4247.46,
+      "p99": 73.79,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 5,
+      "cpuUsPerReq": 243.66,
+      "rps": 4233.55,
+      "p99": 68.04,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 6,
+      "cpuUsPerReq": 263.55,
+      "rps": 3742.19,
+      "p99": 85.66,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 6,
+      "cpuUsPerReq": 244.56,
+      "rps": 4467.82,
+      "p99": 65.84,
+      "problems": []
+    }
+  ]
+}

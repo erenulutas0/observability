@@ -153,6 +153,73 @@ describe('route templates: nested routers', () => {
   })
 })
 
+describe('route templates: route capture does not leak into shared prototypes', () => {
+  const http = require('node:http')
+
+  test('express.request and http.IncomingMessage.prototype never get a route property', async () => {
+    await routeFor((app) => app.get('/users/:id', (req, res) => res.send('ok')), '/users/1')
+
+    // observe() used without Express: the request prototype is IncomingMessage.prototype itself.
+    const collector = collectingSink()
+    const mw = observe({ log: { sink: collector.sink } })
+    const server = http.createServer((req, res) => mw(req, res, () => res.end('plain')))
+    await request(server).get('/plain')
+    const [record] = await collector.waitFor(1)
+    expect(record.route).toBeNull()
+
+    expect(Object.prototype.hasOwnProperty.call(express.request, 'route')).toBe(false)
+    expect(Object.prototype.hasOwnProperty.call(http.IncomingMessage.prototype, 'route')).toBe(false)
+  })
+
+  test('handlers and later middleware still read req.route as Express set it', async () => {
+    let seen = null
+    const record = await routeFor((app) => {
+      app.get('/users/:id', (req, res, next) => { seen = req.route.path; next() }, (req, res) => res.json({ path: req.route.path }))
+    }, '/users/1')
+    expect(seen).toBe('/users/:id')
+    expect(record.route).toBe('/users/:id')
+  })
+
+  test('two apps in one process keep their own labels', async () => {
+    const a = await routeFor((app) => app.get('/a/:id', (req, res) => res.send('a')), '/a/1')
+    const b = await routeFor((app) => app.get('/b/:id', (req, res) => res.send('b')), '/b/2')
+    expect([a.route, b.route]).toEqual(['/a/:id', '/b/:id'])
+  })
+
+  test('a route inside a mounted sub-app is labelled through route.mounts', async () => {
+    const record = await routeFor((app) => {
+      const admin = express()
+      admin.get('/users/:userId', (req, res) => res.send('admin'))
+      app.use('/admin', admin)
+    }, '/admin/users/77', { route: { mounts: ['/admin'] } })
+    expect(record.route).toBe('/admin/users/:userId')
+    expectNoValues(record, ['77'])
+  })
+
+  test('observe() registered inside a route still labels the request', async () => {
+    const collector = collectingSink()
+    const app = express()
+    app.get('/users/:id', observe({ log: { sink: collector.sink } }), (req, res) => res.send('ok'))
+    await request(app).get('/users/1')
+    await request(app).get('/users/2')
+    const records = await collector.waitFor(2)
+    expect(records.map((r) => r.route)).toEqual(['/users/:id', '/users/:id'])
+  })
+
+  test('an app whose request prototype already defines route is left alone', async () => {
+    let appRef
+    const record = await routeFor((app) => {
+      appRef = app
+      Object.defineProperty(app.request, 'route', { configurable: true, enumerable: true, writable: true, value: undefined })
+      app.get('/users/:id', (req, res) => res.send('ok'))
+    }, '/users/1')
+    expect(record.route).toBe('/users/:id')
+    const descriptor = Object.getOwnPropertyDescriptor(appRef.request, 'route')
+    expect(descriptor).toMatchObject({ writable: true, enumerable: true })
+    expect(descriptor.get).toBeUndefined()
+  })
+})
+
 describe('route templates: explicit labels', () => {
   test('res.locals.observeRoute overrides automatic detection', async () => {
     const record = await routeFor((app) => {

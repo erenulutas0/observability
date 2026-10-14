@@ -22,3 +22,9 @@ At middleware entry, define a per-request accessor for `req.route` with `Object.
 - The nested `next(err)` case is labelled correctly; a test covers it, and reverting to read-at-termination makes that test fail.
 - `req.route` becomes an accessor property on the request instance. Code that inspects property descriptors of `req` would notice; ordinary reads and writes behave the same.
 - Express 5 still assigns `req.route` in route dispatch, so the approach should carry over; this is verified when Express 5 support is added.
+
+## Cost and a rejected alternative (2026-10-14)
+
+- Measured cost: removing the per-request accessor made the full-log micro benchmark 11 µs per request (12%) cheaper, in 11 of 12 rounds (`bench/results/micro-2026-10-14/`). Defining an accessor on each request object is the likely reason: it changes the object's shape, which also slows Express's own property accesses on `req`.
+- Alternative tried: one accessor per application on `app.request`, the request prototype Express documents for extensions, with guards that never touch `express.request` or `http.IncomingMessage.prototype`. All tests passed, including mounted sub-apps (Express re-parents a mounted app's request prototype, so the accessor is inherited). It was not kept: 8 of 12 micro rounds and 4 of 6 HTTP rounds, below the bar for a change that also reaches into an Express prototype.
+- The tests written for the alternative stay, since they also guard the current approach: shared prototypes are never modified, `observe()` inside a route still labels requests, and sub-app routes are labelled through `route.mounts`.

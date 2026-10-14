@@ -88,6 +88,16 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [ ] Run on a physical phone over a real network, and on iOS
 - [x] Merged into main (fast-forward) and pushed — 2026-10-14
 
+## Performance (branch perf/hot-path)
+
+- [x] bench/ab.js (HTTP A/B against a git ref) and bench/micro.js (in-process, single-threaded GC) with A-vs-A noise floors — 2026-10-14
+- [x] Fixed: termination misreported as finished when the client left before observe() ran (found by a new test; failed on main) — 2026-10-14
+- [x] Replaced on-finished with finish/close listeners: micro 12/12 −8.6%, HTTP 6/6 −16% server CPU; on-headers is the only runtime dependency (ADR-0007) — 2026-10-14
+- [-] server-timing allocation cuts: inconclusive (9/12, 7/12), not kept — 2026-10-14
+- [-] req.route accessor on app.request instead of per request: inconclusive (8/12, 4/6) and touches an Express prototype, not kept; per-request accessor costs about 11 µs (ADR-0003 addendum) — 2026-10-14
+- [ ] Owner review; merge perf/hot-path into main and push
+- [ ] Re-measure on a quiet machine (no VM, no emulator) to resolve the inconclusive candidates
+
 ## Repository
 
 - [x] MIT LICENSE added with the GitHub handle erenulutas0 as copyright holder (change if a full name is preferred) — 2026-10-14
@@ -95,7 +105,6 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 
 ## Later (not scheduled)
 
-- [ ] Performance candidates from the 2026-10-14 profiles, each to be measured before and after: replace per-request closures and Object.freeze in server-timing.js with a prototype-based object; measure the cost of the per-request req.route accessor (about 1.3% self time); compare on-finished with a plain finish/close listener (ADR-0001 option B, about 3% self time incl. ee-first)
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges
 - [ ] analyze: bounded-memory histogram mode for very large logs; per-group slowest; side-by-side comparison of two time windows or releases
 - [ ] diagnostic-lab second wave: L3 bounded CPU, L4 prebuilt large JSON, L5 fast API + slow client, L6 one operation / several attempts; small Node client measuring clientAttemptMs / operationMs
@@ -114,3 +123,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — doctor merged into main and pushed. React Native correlation demo on branch feat/react-native-demo: shared correlation module with 16 tests (215 in total across workspaces), Expo SDK 57 app bundled for Android but not run on a device; no emulator image or device was available.
 - 2026-10-14 — Owner approved an emulator. Installed an Android 35 x86_64 emulator image and a dedicated AVD. The app ran in Expo Go; all six attempts of a session joined with the server log. Fixed the SafeAreaView deprecation found on the device.
 - 2026-10-14 — React Native demo merged into main. Emulator data kept off the system drive: AVDs, the system image and the Expo cache live on a data drive, verified by a boot that changed system-drive free space by 0 MB.
+- 2026-10-14 — Performance work on perf/hot-path: new A/B and micro benchmarks with noise floors; a termination bug fixed; on-finished replaced (kept, clear win); two candidates rejected as inconclusive. 206 package tests passing. Full table: bench/results/micro-2026-10-14/README.md.

@@ -317,6 +317,8 @@ The middleware costs CPU time on every request. One measurement on a Windows 11 
 | Everything on, default stdout sink | 287 µs | −55% |
 | pino-http with a request ID, for comparison | 222 µs | −46% |
 
+These numbers predate one optimisation: replacing `on-finished` with two plain listeners later cut the full-log configuration's server CPU by a median 16% in a paired A/B run on the same machine ([details](../../bench/results/micro-2026-10-14/README.md)). The table has not been re-measured as a whole since.
+
 Read this as an upper bound for relative cost. The handler does almost nothing, so the middleware is a large share of each request; with handlers that do real work, the same tens of microseconds are a much smaller share. Background load made run-to-run spread wide. Method, ranges, latency percentiles and caveats are in [bench/](../../bench/README.md); run `npm run bench` to measure on your own machine.
 
 ## Not in scope
