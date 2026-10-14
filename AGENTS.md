@@ -30,7 +30,7 @@ Durable instructions for any agent or contributor. Keep this file short; details
 - The package's `npm test` runs the suite twice: Express 4 and Express 5 (`jest.express5.config.js`). Version-specific behaviour gets version-specific tests, never a skipped assertion without a reason.
 - Never weaken or delete a failing test to get green. If the contract must change, see Workflow above.
 - Client-disconnect tests use a real `net`/`http` socket, not mocks.
-- `npm run lab:check` (demo scenarios with assertions) must pass as well as `npm test`, which runs every workspace with tests. CI (`.github/workflows/test.yml`) runs both on Linux and Windows for every push; do not merge with a red run.
+- `npm run lab:check` (demo scenarios with assertions) must pass as well as `npm test`, which runs every workspace with tests. Changes to the public API, `index.d.ts`, `files` or `bin` also need `npm run consumer:check --workspace packages/express-observe` (packed tarball, CJS, TypeScript, CLI). CI (`.github/workflows/test.yml`) runs both on Linux and Windows for every push; do not merge with a red run.
 - The Expo app in `examples/react-native-correlation/app` is outside the workspace; check it with `npx expo install --check` and `npm run check:bundle` there. Say so explicitly whenever it has not been run on a device.
 
 ## Docs

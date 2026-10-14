@@ -17,3 +17,6 @@ TUM_ARASTIRMA.md
 
 # A/B package copies extracted by bench/ab.js
 bench/.ab/
+
+# packed-tarball consumer tests (packages/express-observe/tools/consumer)
+.consumer-test/

@@ -17,6 +17,26 @@ It is a small building block that feeds the logging you already have. It is not 
 - Node.js 22 or later
 - Express 4.17 or later, or Express 5. The full test suite runs against both (4.22.3 and 5.3.0).
 - One runtime dependency: [`on-headers`](https://www.npmjs.com/package/on-headers) 1.1, from the Express maintainers.
+- TypeScript is optional. The package ships hand-written type definitions; install `@types/express` 4.17 or 5.x as well.
+
+### TypeScript
+
+```ts
+import express = require('express')
+import observe = require('express-observe')
+
+const app = express()
+app.use(observe({ log: { sink: (record: observe.AccessLogRecord) => console.log(record.route, record.durationMs) } }))
+
+app.get('/users/:id', (req, res) => {
+  res.serverTiming?.start('db')
+  res.json({ requestId: req.id })
+})
+```
+
+- `req.id` and `res.serverTiming` are typed as optional, because the compiler cannot know whether `observe()` ran before a given handler. Use `?.` or check them once.
+- `observe.AccessLogRecord`, `observe.Options` and the other exported types describe the record and the options below. Fields added with `log.extend` are typed as `unknown`.
+- The definitions are checked against the packed package with TypeScript 5.9 and 7.0, on Express 4 and 5. They are written by hand, so report any mismatch with the runtime as a bug.
 
 ## Quick start
 

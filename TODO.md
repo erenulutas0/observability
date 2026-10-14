@@ -136,7 +136,8 @@ Review of the project summary from a separate session; evidence table in docs/re
 - [x] R5: "handed to the sink once" and "a sink returning is not remote acceptance" in README and ARCHITECTURE — 2026-10-14
 - [x] R3: example server keeps trustIncoming on, with TRUST_CLIENT_IDS=0 for the package default; README says why the example differs — 2026-10-14
 - [x] Mutation checks made reproducible: tools/mutation (runner + 4 specs, 31 mutations). Earlier counts in this file came from one-off scripts that were not kept — 2026-10-14
-- [ ] P3 TypeScript types and a packed-tarball consumer test (CJS and TS)
+- [x] P3 TypeScript types: hand-written index.d.ts shipped in the package, optional @types/express peer, req.id and res.serverTiming typed as optional — 2026-10-15
+- [x] P3 packed-tarball consumer check (tools/consumer, npm run consumer:check, in CI): CommonJS runtime, strict tsc with must-fail cases, CLI from node_modules; Express 4 + TS 5.9 and Express 5 + TS 7.0 pass. Loosening one option type made the check fail, as intended — 2026-10-15
 - [ ] P1 local diagnostics counters (needs an ADR)
 - [ ] P2 analyze coverage notes and data-quality fixtures
 - [ ] P4 same-commit benchmark on a quiet machine; controlled pilot

@@ -25,6 +25,9 @@ packages/express-observe/src/
 ├── logger.js          [implemented] record builder, opt-in extension, default stdout sink, sink error isolation, rate-limited warnings
 ├── route-template.js  [implemented] route capture at match time, mount template matching, explicit labels
 └── event-loop.js      [implemented] optional event-loop delay sampler (ADR-0009)
+
+packages/express-observe/index.d.ts   [implemented] hand-written types for the public API (section 6), shipped in the package
+packages/express-observe/tools/consumer/  [implemented] packed-tarball consumer check (see below)
 ```
 
 Each module is pure where possible (input -> output) so unit tests do not need an HTTP server. `index.js` is the only module that touches the Express lifecycle.
@@ -231,6 +234,8 @@ observe({
 ```
 
 Unknown options throw at construction time (fail fast at startup, never per request).
+
+**Types [implemented].** `index.d.ts` describes this surface: `observe(options?)` returning an Express `RequestHandler`, the `observe.observe` alias, `observe.Options` and its sections, `observe.AccessLogRecord`, `observe.ServerTiming`, `Termination` and `RequestIdSource`. It augments `Express.Request` with an optional `id` and `Express.Response` with an optional `serverTiming`; both are optional because the compiler cannot tell whether the middleware ran. `@types/express` is an optional peer dependency. The types are written by hand, so `tools/consumer/run.js` (`npm run consumer:check`, also in CI) packs the package with `npm pack`, installs the tarball into clean projects (Express 4 + `@types/express` 4.17 + TypeScript 5.9, and Express 5 + `@types/express` 5.0 + TypeScript 7.0) and checks CommonJS at runtime, strict compilation of correct usage, `@ts-expect-error` cases that must stay errors, and the CLI from `node_modules`.
 
 ## 11. `express-observe analyze` (CLI) **[implemented, ADR-0004]**
 
