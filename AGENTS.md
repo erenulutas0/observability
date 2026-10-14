@@ -4,7 +4,7 @@ Durable instructions for any agent or contributor. Keep this file short; details
 
 ## Project
 
-- `express-observe`: lightweight, privacy-first observability middleware for Express 4 on Node 22. CommonJS. MIT.
+- `express-observe`: lightweight, privacy-first observability middleware for Express 4 and 5 on Node 22. CommonJS. MIT.
 - Personal open-source project. Never reference, copy or adapt proprietary code, configs, logs or data from any employer or third party. Use synthetic fixtures only.
 - Sources of truth: ARCHITECTURE.md (what is built and how), TODO.md (what is pending/done), docs/decisions/ (why). PLAN.md is the roadmap. Do not duplicate content across them; link instead.
 
@@ -17,7 +17,7 @@ Durable instructions for any agent or contributor. Keep this file short; details
 
 ## Code
 
-- Node >= 22, Express 4.x peer. `"use strict"` CommonJS modules. No build step.
+- Node >= 22, Express 4.x or 5.x peer. `"use strict"` CommonJS modules. No build step.
 - The only runtime dependency is `on-headers` (ADR-0001, ADR-0007). Adding one needs a decision record.
 - Performance changes need evidence: a paired A/B with `bench/micro.js` (and `bench/ab.js` for HTTP) against the previous commit, beating an A-vs-A run. Keep a change only if it wins in every round.
 - The middleware must never: throw into the request pipeline, call `next(err)` for its own failures, mutate headers after `res.headersSent`, or log bodies, URLs, query strings, headers, cookies, IPs, user identifiers, error messages or stack traces by default.
@@ -27,6 +27,7 @@ Durable instructions for any agent or contributor. Keep this file short; details
 ## Tests
 
 - Jest + Supertest in `packages/express-observe/test/`. Tests assert externally observable behaviour (headers, status, emitted records), not internals.
+- The package's `npm test` runs the suite twice: Express 4 and Express 5 (`jest.express5.config.js`). Version-specific behaviour gets version-specific tests, never a skipped assertion without a reason.
 - Never weaken or delete a failing test to get green. If the contract must change, see Workflow above.
 - Client-disconnect tests use a real `net`/`http` socket, not mocks.
 - `npm run lab:check` (demo scenarios with assertions) must pass as well as `npm test`, which runs every workspace with tests.
@@ -34,5 +35,5 @@ Durable instructions for any agent or contributor. Keep this file short; details
 
 ## Docs
 
-- README documents install, options, record schema, privacy defaults and known limitations (Express 4 async errors, no delivery guarantees, route label rules).
+- README documents install, options, record schema, privacy defaults and known limitations (Express 4 async errors, Express version differences, no delivery guarantees, route label rules).
 - Benchmarks live in `bench/`, raw outputs in `bench/results/` with date, Node/Express version, OS, hardware and load config. No "zero overhead" claims.

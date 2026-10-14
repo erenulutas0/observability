@@ -1,6 +1,6 @@
 # express-observe
 
-Lightweight, privacy-first observability middleware for Express 4.
+Lightweight, privacy-first observability middleware for Express 4 and 5.
 
 One `app.use()` gives every request:
 
@@ -15,7 +15,7 @@ It is a small building block that feeds the logging you already have. It is not 
 ## Requirements
 
 - Node.js 22 or later
-- Express 4.17 or later (tested with 4.22.3). Express 5 is not supported yet.
+- Express 4.17 or later, or Express 5. The full test suite runs against both (4.22.3 and 5.3.0).
 - One runtime dependency: [`on-headers`](https://www.npmjs.com/package/on-headers) 1.1, from the Express maintainers.
 
 ## Quick start
@@ -299,12 +299,12 @@ What you add yourself through `extend`, `res.locals.observeRoute`, `route.resolv
 
 ## Known limitations
 
-- **Express 4 does not catch rejected promises from `async` handlers.** Such a request hangs until the client gives up; only then is a record written, as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 fixes this.
-- **Express 4's default error handler prints the stack to stderr** whenever `NODE_ENV` is not `test`. That output comes from Express, not from this package. Install your own error middleware if stacks must stay out of stderr.
+- **Express 4 does not catch rejected promises from `async` handlers** (Express 5 does, and the request is then logged as a finished 500). Such a request hangs until the client gives up; only then is a record written, as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 fixes this.
+- **Express's default error handler prints the stack to stderr** (4 and 5) whenever `NODE_ENV` is not `test`. That output comes from Express, not from this package. Install your own error middleware if stacks must stay out of stderr.
 - **No delivery guarantee.** See Sinks.
 - **`durationMs` starts when the middleware runs.** Connection setup, TLS and request-header parsing happen earlier and are not included.
 - **Server-side only.** It cannot measure network latency, client rendering or device performance. It gives the client the IDs and timings it needs to correlate those itself.
-- **Express 5** is not supported yet.
+- **Express 5 route syntax** (`/*splat`, `{.:ext}`) is logged as written. Express 4 inline regex parameters such as `:id(\d+)` are logged as written too. `route.mounts` templates support literal and `:param` segments only, so a router mounted on a wildcard path gets `route: null` unless you label it.
 
 ## Performance
 

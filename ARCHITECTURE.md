@@ -6,7 +6,7 @@ As of Phase 5 (2026-10-14): the middleware, the diagnostic-lab demo (v0.1 scenar
 
 ## 1. What the package does
 
-`observe(options)` returns one Express 4 middleware. For every request it:
+`observe(options)` returns one Express middleware (Express 4 and 5). For every request it:
 
 1. Assigns a request ID (`req.id`, `X-Request-Id` response header).
 2. Starts a monotonic clock and exposes `res.serverTiming` for custom timers.
@@ -196,7 +196,7 @@ Runtime:
 | `on-headers` | ^1.1.0 | Correctly intercepts every `writeHead` form (status-only, status+headers object, legacy array form). 1.1.0 contains the fix for CVE-2025-7339. Zero dependencies, maintained by jshttp (the Express org) | Hand-written `writeHead` patch: same technique, less battle-testing, and we would own the CVE surface |
 | ~~`on-finished`~~ | removed | Replaced by `finish` + `close` listeners after it measured as the largest middleware-attributable cost (8.6 µs per request in the micro benchmark) and after a termination bug showed a `finish` listener was needed anyway (ADR-0007) | |
 
-Peer: `express ^4.17` (tested against 4.22.x). Dev: `jest ^30`, `supertest ^7`, `express 4.22.x`. Bench only: `autocannon ^8`, `pino-http ^11`.
+Peer: `express ^4.17 || ^5` (tested against 4.22.3 and 5.3.0). Dev: `jest ^30`, `supertest ^7`, `express 4.22.x`, `express5` (alias for `express@5.3.0`). Bench only: `autocannon ^8`, `pino-http ^11`.
 
 ## 6. Options surface (v0.1) **[implemented]**
 
@@ -269,7 +269,10 @@ examples/react-native-correlation/
 
 The client never uploads its attempts; they are printed to the console and joined offline.
 
-## 7. Express 5 **[idea]**
+## 7. Express 5 **[implemented, ADR-0008]**
+
+The full package test suite runs against Express 5.3.0 as well as 4.22.3 (`npm test` runs both; `jest.express5.config.js` maps `express` to an `express5` npm alias). The only difference that needed version-specific tests was route syntax; behaviour that differs by design is tested per version: Express 5 turns a rejected `async` handler into a finished 500 record, Express 4 leaves it open until the client gives up. The notes below were the plan before support was verified.
+
 
 `req.route`, `req.baseUrl`, `writeHead`, `finish`/`close` all survive in Express 5. Differences to handle later: path-to-regexp v8 syntax (`/*splat`, no bare `*`), and async handler rejections being routed to `next(err)` automatically (which makes the error story simpler, not harder).
 

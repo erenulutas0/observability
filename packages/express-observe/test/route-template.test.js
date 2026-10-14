@@ -5,6 +5,8 @@ const request = require('supertest')
 const observe = require('../src')
 const { collectingSink } = require('./helpers/records')
 
+const EXPRESS_MAJOR = Number(require('express/package.json').version.split('.')[0])
+
 /** Run one request and return its record. */
 async function routeFor (configure, path, options = {}) {
   const collector = collectingSink()
@@ -36,19 +38,41 @@ describe('route templates: top-level routes', () => {
     expectNoValues(record, ['48151623'])
   })
 
-  test('several params and an inline regex constraint are kept as written', async () => {
+  // Inline regex parameters exist only in Express 4 (path-to-regexp 0.1); Express 5 rejects them.
+  const testExpress4 = EXPRESS_MAJOR === 4 ? test : test.skip
+  const testExpress5 = EXPRESS_MAJOR >= 5 ? test : test.skip
+
+  testExpress4('Express 4: several params and an inline regex constraint are kept as written', async () => {
     const record = await routeFor(
       (app) => app.get('/orgs/:orgId/files/:name(\\w+)', (req, res) => res.send('ok')),
-      '/orgs/77001/files/report'
+      '/orgs/7700131/files/report'
     )
     expect(record.route).toBe('/orgs/:orgId/files/:name(\\w+)')
-    expectNoValues(record, ['77001', 'report'])
+    expectNoValues(record, ['7700131', 'report'])
+  })
+
+  testExpress5('Express 5: a named wildcard is kept as written, never the matched path', async () => {
+    const record = await routeFor(
+      (app) => app.get('/files/*splat', (req, res) => res.send('ok')),
+      '/files/secret-dir/8812391/report.pdf'
+    )
+    expect(record.route).toBe('/files/*splat')
+    expectNoValues(record, ['secret-dir', '8812391', 'report.pdf'])
+  })
+
+  testExpress5('Express 5: an optional segment is kept as written', async () => {
+    const record = await routeFor(
+      (app) => app.get('/orgs/:orgId/files/:name{.:ext}', (req, res) => res.send('ok')),
+      '/orgs/7700131/files/report.pdf'
+    )
+    expect(record.route).toBe('/orgs/:orgId/files/:name{.:ext}')
+    expectNoValues(record, ['7700131', 'report'])
   })
 
   test('a RegExp route has no safe template: null', async () => {
-    const record = await routeFor((app) => app.get(/^\/re\/\d+$/, (req, res) => res.send('ok')), '/re/90210')
+    const record = await routeFor((app) => app.get(/^\/re\/\d+$/, (req, res) => res.send('ok')), '/re/9021077')
     expect(record.route).toBeNull()
-    expectNoValues(record, ['90210'])
+    expectNoValues(record, ['9021077'])
   })
 
   test('an array route has no single template: null', async () => {
@@ -132,14 +156,14 @@ describe('route templates: nested routers', () => {
       teams.use('/teams/:teamId', postsRouter())
       app.use('/orgs/:orgId', teams)
     }
-    const partial = await routeFor(configure, '/orgs/1001/teams/2002/3003', { route: { mounts: ['/orgs/:orgId'] } })
+    const partial = await routeFor(configure, '/orgs/1001731/teams/2002731/3003731', { route: { mounts: ['/orgs/:orgId'] } })
     expect(partial.route).toBeNull()
 
-    const full = await routeFor(configure, '/orgs/1001/teams/2002/3003', {
+    const full = await routeFor(configure, '/orgs/1001731/teams/2002731/3003731', {
       route: { mounts: ['/orgs/:orgId', '/orgs/:orgId/teams/:teamId'] }
     })
     expect(full.route).toBe('/orgs/:orgId/teams/:teamId/:postId')
-    expectNoValues(full, ['1001', '2002', '3003'])
+    expectNoValues(full, ['1001731', '2002731', '3003731'])
   })
 
   test('next(err) out of a nested router keeps the nested label (baseUrl is captured at match time)', async () => {
@@ -191,9 +215,9 @@ describe('route templates: route capture does not leak into shared prototypes', 
       const admin = express()
       admin.get('/users/:userId', (req, res) => res.send('admin'))
       app.use('/admin', admin)
-    }, '/admin/users/77', { route: { mounts: ['/admin'] } })
+    }, '/admin/users/7731904', { route: { mounts: ['/admin'] } })
     expect(record.route).toBe('/admin/users/:userId')
-    expectNoValues(record, ['77'])
+    expectNoValues(record, ['7731904'])
   })
 
   test('observe() registered inside a route still labels the request', async () => {

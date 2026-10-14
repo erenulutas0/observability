@@ -98,6 +98,13 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [ ] Owner review; merge perf/hot-path into main and push
 - [ ] Re-measure on a quiet machine (no VM, no emulator) to resolve the inconclusive candidates
 
+## Express 5 (branch feat/express-5, stacked on perf/hot-path)
+
+- [x] Peer range ^4.17.0 || ^5.0.0; express5 dev alias; jest.express5.config.js; package npm test runs both majors; guard test for the loaded version (ADR-0008) — 2026-10-14
+- [x] Version-specific tests: Express 4 inline regex params; Express 5 named wildcards and optional segments; rejected async handlers (Express 5: finished 500; Express 4: open until the client leaves) — 2026-10-14
+- [x] Fixed a flaky leak assertion: sentinel 77 matched a timestamp; short numeric sentinels replaced with 7-digit values — 2026-10-14
+- [ ] Owner review; merge perf/hot-path, then feat/express-5, into main and push
+
 ## Repository
 
 - [x] MIT LICENSE added with the GitHub handle erenulutas0 as copyright holder (change if a full name is preferred) — 2026-10-14
@@ -108,7 +115,6 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges
 - [ ] analyze: bounded-memory histogram mode for very large logs; per-group slowest; side-by-side comparison of two time windows or releases
 - [ ] diagnostic-lab second wave: L3 bounded CPU, L4 prebuilt large JSON, L5 fast API + slow client, L6 one operation / several attempts; small Node client measuring clientAttemptMs / operationMs
-- [ ] Express 5 compatibility
 - [ ] Optional OpenTelemetry trace-id correlation
 
 ## History
@@ -124,3 +130,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — Owner approved an emulator. Installed an Android 35 x86_64 emulator image and a dedicated AVD. The app ran in Expo Go; all six attempts of a session joined with the server log. Fixed the SafeAreaView deprecation found on the device.
 - 2026-10-14 — React Native demo merged into main. Emulator data kept off the system drive: AVDs, the system image and the Expo cache live on a data drive, verified by a boot that changed system-drive free space by 0 MB.
 - 2026-10-14 — Performance work on perf/hot-path: new A/B and micro benchmarks with noise floors; a termination bug fixed; on-finished replaced (kept, clear win); two candidates rejected as inconclusive. 206 package tests passing. Full table: bench/results/micro-2026-10-14/README.md.
+- 2026-10-14 — Express 5 support on feat/express-5: the full suite passes on Express 4.22.3 (208 run, 3 version-skipped) and 5.3.0 (209 run, 2 version-skipped), stable across repeated runs.

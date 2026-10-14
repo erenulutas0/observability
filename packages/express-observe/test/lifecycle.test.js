@@ -219,6 +219,44 @@ describe('access log: errors and 404', () => {
   })
 })
 
+describe('access log: rejected promises in async handlers', () => {
+  const EXPRESS_MAJOR = Number(require('express/package.json').version.split('.')[0])
+
+  // Express 5 forwards a rejected promise to next(err); Express 4 does not (documented limitation).
+  ;(EXPRESS_MAJOR >= 5 ? test : test.skip)('Express 5: a rejected async handler is logged once as a finished 500', async () => {
+    const { app, waitFor, settle } = setup((a) => {
+      a.get('/async-fail', async () => { throw new Error('synthetic async failure') })
+    })
+    const res = await request(app).get('/async-fail')
+    expect(res.status).toBe(500)
+    const [record] = await waitFor(1)
+    expect(record).toMatchObject({ status: 500, termination: 'finished', route: '/async-fail' })
+    expect(await settle()).toHaveLength(1)
+  })
+
+  ;(EXPRESS_MAJOR === 4 ? test : test.skip)('Express 4: a rejected async handler leaves the request open until the client gives up', async () => {
+    let rejectionSeen = false
+    const { app, waitFor } = setup((a) => {
+      // Express 4 ignores the promise a handler returns. The test observes the rejection itself so that Jest's
+      // own unhandled-rejection handling does not fail the run; Express still never sees it.
+      a.get('/async-fail', () => {
+        const p = Promise.reject(new Error('synthetic async failure'))
+        p.catch(() => { rejectionSeen = true })
+        return p
+      })
+    })
+    const { port, close } = await listen(app)
+    try {
+      await abortAfter(port, '/async-fail', 100)
+      const [record] = await waitFor(1)
+      expect(record).toMatchObject({ status: null, termination: 'interrupted', route: '/async-fail' })
+      expect(rejectionSeen).toBe(true)
+    } finally {
+      await close()
+    }
+  })
+})
+
 describe('access log: interrupted connections (real sockets)', () => {
   test('client disconnect before headers: interrupted, status null, headerDurationMs null; a late response adds no record', async () => {
     let lateResponseDone
