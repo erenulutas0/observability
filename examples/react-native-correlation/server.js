@@ -5,6 +5,7 @@
 //   node server.js                      listens on 127.0.0.1:4000 (Android emulator: http://10.0.2.2:4000,
 //                                        iOS simulator: http://127.0.0.1:4000)
 //   HOST=0.0.0.0 node server.js         also reachable from a phone on your LAN; only do this on a trusted network
+//   TRUST_CLIENT_IDS=0 node server.js   the package default: ignore the client's X-Request-Id and generate one
 //
 // Access-log records go to stdout as JSON lines: node server.js > access.jsonl
 // Synthetic data only. Every delay and size comes from the constants below, not from the request.
@@ -84,7 +85,8 @@ function createApp (options = {}) {
 function start () {
   const host = process.env.HOST || '127.0.0.1'
   const port = Number(process.env.PORT) || DEFAULT_PORT
-  const server = createApp().listen(port, host, () => {
+  const trustIncoming = process.env.TRUST_CLIENT_IDS !== '0'
+  const server = createApp({ trustIncoming }).listen(port, host, () => {
     process.stderr.write(`rn-correlation-demo API on http://${host}:${server.address().port} (access log on stdout)\n`)
     if (host !== '127.0.0.1' && host !== 'localhost') {
       process.stderr.write('Warning: listening beyond loopback. Anyone on this network can reach this demo API.\n')

@@ -72,6 +72,14 @@ Starts the example API in-process and plays the five scenarios with the **same**
 
 ## Why the server trusts client IDs here
 
+**This example deliberately differs from the package default.** express-observe ignores a client's `X-Request-Id` unless you opt in; the example server opts in so that the last scenario can be demonstrated. To run it with the package default instead:
+
+```bash
+TRUST_CLIENT_IDS=0 node examples/react-native-correlation/server.js > access.jsonl
+```
+
+With the default, the join matches each attempt through the server-generated ID in the response header, and an attempt that never received a response cannot be matched; the join reports it as unknown instead of guessing. Both modes are covered by the tests.
+
 The last scenario only joins because the server accepts the client's `X-Request-Id` (`requestId.trustIncoming: true` in `server.js`). Without it, a request the client gave up on has no ID the client knows, and the join reports "unknown". The tests cover both settings.
 
 Accepted IDs are correlation data, not identity: any client can choose them, records mark them with `requestIdSource: "client"`, and express-observe still validates their format. Decide per deployment whether that trade is worth it, for example by trusting only requests that come through your own gateway.
