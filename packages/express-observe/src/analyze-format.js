@@ -30,8 +30,8 @@ function table (headers, rows, alignRight) {
   return [line(headers), line(widths.map((w) => '-'.repeat(w))), ...rows.map(line)].join('\n')
 }
 
-function groupRow (g) {
-  return [
+function groupRow (g, withLoop) {
+  const row = [
     truncate(safe(g.key), MAX_KEY_WIDTH),
     String(g.count),
     pct(g.errorRate5xx),
@@ -42,6 +42,8 @@ function groupRow (g) {
     ms(g.durationMs.max),
     ms(g.headerDurationMs.p95)
   ]
+  if (withLoop) row.push(g.eventLoopDelayMs === null ? '-' : ms(g.eventLoopDelayMs.max))
+  return row
 }
 
 function describeSkipped (skipped) {
@@ -76,9 +78,12 @@ function renderText (report, sources) {
   out.push(`releases: ${list(report.releases)}`)
   out.push('')
 
+  // The event-loop column appears only when the records carry eventLoopDelayMs (ADR-0009).
+  const withLoop = report.totals.eventLoopDelayMs !== null
   const headers = [report.groupBy.toUpperCase(), 'COUNT', '5XX', 'INTERRUPTED', 'P50 MS', 'P95 MS', 'P99 MS', 'MAX MS', 'HEADER P95 MS']
-  const rows = report.groups.map(groupRow)
-  rows.push(groupRow({ ...report.totals, key: 'all requests' }))
+  if (withLoop) headers.push('LOOP MAX MS')
+  const rows = report.groups.map((g) => groupRow(g, withLoop))
+  rows.push(groupRow({ ...report.totals, key: 'all requests' }, withLoop))
   out.push(table(headers, rows, headers.map((_, i) => i > 0)))
   out.push('')
   out.push('Latency columns use finished requests only. HEADER P95 is time until response headers were sent.')

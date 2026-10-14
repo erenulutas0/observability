@@ -210,6 +210,39 @@ describe('analyze: grouping, sorting and slowest requests', () => {
   })
 })
 
+describe('analyze: optional eventLoopDelayMs (ADR-0009)', () => {
+  test('is aggregated per group with a blocked count, and produces a note', () => {
+    const lines = [
+      ...Array.from({ length: 20 }, (_, i) => rec({ eventLoopDelayMs: i < 18 ? 2 : 90 })),
+      rec({ termination: 'interrupted', status: null, headerDurationMs: null, durationMs: 5, eventLoopDelayMs: 120 })
+    ]
+    const report = json(['analyze', writeLog(lines)])
+    const g = group(report, 'GET /users/:id')
+    expect(g.eventLoopDelayMs).toMatchObject({ n: 21, max: 120, blocked: 3 })
+    expect(report.notes.join(' ')).toMatch(/3 request\(s\) saw the event loop blocked for 50 ms or more/)
+  })
+
+  test('absent field: no statistics, no note, no table column', () => {
+    const report = json(['analyze', writeLog([rec(), rec()])])
+    expect(report.totals.eventLoopDelayMs).toBeNull()
+    expect(report.notes.join(' ')).not.toMatch(/event loop/)
+    const { stdout } = cli(['analyze', writeLog([rec()])])
+    expect(stdout).not.toMatch(/LOOP MAX MS/)
+  })
+
+  test('present field: the table gets a LOOP MAX MS column', () => {
+    const { stdout } = cli(['analyze', writeLog([rec({ eventLoopDelayMs: 75.5 })])])
+    expect(stdout).toMatch(/LOOP MAX MS/)
+    expect(stdout).toMatch(/75\.5\s*$/m)
+  })
+
+  test('an invalid eventLoopDelayMs makes the record invalid', () => {
+    const report = json(['analyze', writeLog([rec({ eventLoopDelayMs: -3 }), rec({ eventLoopDelayMs: 'slow' }), rec({ eventLoopDelayMs: null }), rec()])])
+    expect(report.input.records).toBe(2)
+    expect(report.input.skipped.invalid).toBe(2)
+  })
+})
+
 describe('analyze: text output', () => {
   test('prints a table with a totals row and notes', () => {
     const lines = Array.from({ length: 25 }, (_, i) => rec({ durationMs: i + 1 }))

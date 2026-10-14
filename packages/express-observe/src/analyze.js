@@ -13,6 +13,7 @@ const MAX_SLOWEST = 100
 const MIN_SAMPLES = Object.freeze({ p95: 20, p99: 100 })
 const GROUP_BY = Object.freeze(['method-route', 'route', 'service', 'release'])
 const SORT_BY = Object.freeze(['count', 'p95', 'p99', 'errors', 'interrupted'])
+const LOOP_BLOCKED_MS = 50
 const UNKNOWN_ROUTE = '(unknown route)'
 const UNSET = '(not set)'
 
@@ -75,6 +76,7 @@ function classify (value) {
     (value.route === null || isShortString(value.route)) &&
     (value.status === null || (Number.isInteger(value.status) && value.status >= 100 && value.status <= 599)) &&
     isDuration(value.durationMs) &&
+    (!('eventLoopDelayMs' in value) || value.eventLoopDelayMs === null || isDuration(value.eventLoopDelayMs)) &&
     (value.headerDurationMs === null || isDuration(value.headerDurationMs)) &&
     (value.service === null || value.service === undefined || isShortString(value.service)) &&
     (value.release === null || value.release === undefined || isShortString(value.release)) &&
@@ -104,12 +106,19 @@ function newGroup (key) {
     status: { '1xx': 0, '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0, none: 0 },
     hasUnknownRoute: false,
     duration: new Series(),
-    header: new Series()
+    header: new Series(),
+    loop: new Series(),
+    loopBlocked: 0
   }
 }
 
 function addToGroup (group, record) {
   group.count++
+  // Optional field (ADR-0009). Process-level, so it is aggregated for finished and interrupted requests alike.
+  if (typeof record.eventLoopDelayMs === 'number') {
+    group.loop.push(record.eventLoopDelayMs)
+    if (record.eventLoopDelayMs >= LOOP_BLOCKED_MS) group.loopBlocked++
+  }
   if (record.route === null) group.hasUnknownRoute = true
   if (record.status === null) group.status.none++
   else group.status[`${Math.floor(record.status / 100)}xx`]++
@@ -134,7 +143,8 @@ function finalizeGroup (group) {
     status: { ...group.status },
     errorRate5xx: rate(group.status['5xx']),
     durationMs: group.duration.summary(true),
-    headerDurationMs: group.header.summary(false)
+    headerDurationMs: group.header.summary(false),
+    eventLoopDelayMs: group.loop.length > 0 ? { ...group.loop.summary(true), blocked: group.loopBlocked } : null
   }
 }
 
@@ -286,6 +296,9 @@ function buildNotes ({ all, total, groupBy, services, releases, skipped, shownCo
   }
   if (releases.size > 1 && groupBy !== 'release') {
     notes.push(`Records from ${releases.size} releases are mixed in these groups, which can hide a regression. Use --by release to compare them.`)
+  }
+  if (total.eventLoopDelayMs !== null && total.eventLoopDelayMs.blocked > 0) {
+    notes.push(`${total.eventLoopDelayMs.blocked} request(s) saw the event loop blocked for ${LOOP_BLOCKED_MS} ms or more. Requests that arrive during a block wait before observe() runs, so their durationMs understates what their clients waited. eventLoopDelayMs says the process was blocked, not which code blocked it.`)
   }
   const withheld = all.filter((g) => g.durationMs.n > 0 && (g.durationMs.p95 === null || g.durationMs.p99 === null)).length
   if (withheld > 0) {

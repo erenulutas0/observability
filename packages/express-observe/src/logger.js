@@ -56,6 +56,23 @@ function roundMs (ms) {
  * Only the fields listed here exist; nothing is copied from req/res wholesale.
  */
 function buildRecord (fields) {
+  if (fields.eventLoopDelayMs === undefined) {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      timestamp: fields.timestamp,
+      requestId: fields.requestId,
+      requestIdSource: fields.requestIdSource,
+      service: fields.service,
+      release: fields.release,
+      method: fields.method,
+      route: fields.route,
+      status: fields.status,
+      headerDurationMs: fields.headerDurationMs === null ? null : roundMs(fields.headerDurationMs),
+      durationMs: roundMs(fields.durationMs),
+      termination: fields.termination
+    }
+  }
+  // Only with options.eventLoop.enabled (ADR-0009): same fields plus eventLoopDelayMs after durationMs.
   return {
     schemaVersion: SCHEMA_VERSION,
     timestamp: fields.timestamp,
@@ -68,6 +85,7 @@ function buildRecord (fields) {
     status: fields.status,
     headerDurationMs: fields.headerDurationMs === null ? null : roundMs(fields.headerDurationMs),
     durationMs: roundMs(fields.durationMs),
+    eventLoopDelayMs: roundMs(fields.eventLoopDelayMs),
     termination: fields.termination
   }
 }

@@ -23,7 +23,8 @@ packages/express-observe/src/
 ├── request-id.js      [implemented] isValidRequestId(), generateRequestId(), resolveRequestId(req, policy) -> { id, source }
 ├── server-timing.js   [implemented] per-response timer registry + header serialization (W3C Server-Timing)
 ├── logger.js          [implemented] record builder, opt-in extension, default stdout sink, sink error isolation, rate-limited warnings
-└── route-template.js  [implemented] route capture at match time, mount template matching, explicit labels
+├── route-template.js  [implemented] route capture at match time, mount template matching, explicit labels
+└── event-loop.js      [implemented] optional event-loop delay sampler (ADR-0009)
 ```
 
 Each module is pure where possible (input -> output) so unit tests do not need an HTTP server. `index.js` is the only module that touches the Express lifecycle.
@@ -162,6 +163,7 @@ Field rules:
 - `durationMs` = middleware entry -> termination. Time Node spends parsing the request head before Express runs is not included.
 - `service` and `release` come from options; default `null`. No env-var fallback in v0.1.
 - `route` per section 4.3; `null` when unknown.
+- `eventLoopDelayMs` (only with `eventLoop.enabled`, after `durationMs`): the largest event-loop lateness from one sampling interval before middleware entry until the record is built, including the currently overdue tick. A process-level signal for the wait that happens before `observe()` runs (ADR-0009).
 - The record is built from an explicit field list. Nothing is copied from `req` or `res` wholesale.
 
 Never logged by the middleware: request/response bodies, raw URL and query string, request/response headers, cookies, IP addresses, user identifiers, error messages and stack traces. A sentinel-based test plants each of these in a request and checks stdout and stderr.
@@ -290,6 +292,7 @@ The package measures the server side only. The names below are used consistently
 | `durationMs` | log record | middleware entry -> `finish` or early `close` | time the client waited; `finish` only means the kernel accepted the last chunk |
 | custom `name;dur` | `Server-Timing` | `serverTiming.start(name)` -> `end(name)` | a share of the total; parallel operations can legitimately sum to more than `durationMs` |
 | `termination` | log record | HTTP outcome at the server | user intent |
+| `eventLoopDelayMs` | log record (opt-in) | process event-loop lateness around the request | this request's own wait, or which code blocked |
 | `clientAttemptMs` | **client only** (future demo) | one physical HTTP attempt as seen by the client | network time; `clientAttemptMs - durationMs` is not "the network" |
 | `operationMs` | **client only** (future demo) | user action -> usable UI result | a server metric; one operation may spawn several attempts, each with its own request ID |
 

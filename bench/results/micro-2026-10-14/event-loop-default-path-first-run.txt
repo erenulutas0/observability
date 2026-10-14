@@ -1,0 +1,18 @@
+micro A/B: A = main (59da44f), B = working tree, 12 rounds x 40000 requests
+  round 1 full-log   A 105.08 µs  B 104.3 µs
+  round 2 full-log   A 107.03 µs  B 115.25 µs
+  round 3 full-log   A 88.28 µs  B 112.88 µs
+  round 4 full-log   A 101.18 µs  B 113.7 µs
+  round 5 full-log   A 101.18 µs  B 87.48 µs
+  round 6 full-log   A 96.9 µs  B 103.9 µs
+  round 7 full-log   A 91.8 µs  B 99.63 µs
+  round 8 full-log   A 95.7 µs  B 108.95 µs
+  round 9 full-log   A 101.95 µs  B 111.7 µs
+  round 10 full-log   A 126.95 µs  B 101.95 µs
+  round 11 full-log   A 104.68 µs  B 109 µs
+  round 12 full-log   A 104.3 µs  B 126.98 µs
+micro A/B — A = main (59da44f), B = working tree; 12 rounds x 40000 requests; CPU µs per request, in-process, no I/O
+
+| Variant | A | B | median paired diff | B lower in |
+|---|---|---|---|---|
+| full-log | 101.56 | 108.98 | 8.02 µs (7.9%) | 3 of 12 |
