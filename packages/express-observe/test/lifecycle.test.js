@@ -234,7 +234,7 @@ describe('access log: rejected promises in async handlers', () => {
     expect(await settle()).toHaveLength(1)
   })
 
-  ;(EXPRESS_MAJOR === 4 ? test : test.skip)('Express 4: a rejected async handler leaves the request open until the client gives up', async () => {
+  ;(EXPRESS_MAJOR === 4 ? test : test.skip)('Express 4: a rejected async handler, when the process survives the rejection, leaves the request open until the client gives up', async () => {
     let rejectionSeen = false
     const { app, waitFor } = setup((a) => {
       // Express 4 ignores the promise a handler returns. The test observes the rejection itself so that Jest's
