@@ -14,3 +14,6 @@ TUM_ARASTIRMA.md
 # Expo local state and bundle checks
 .expo/
 .expo-export-check/
+
+# A/B package copies extracted by bench/ab.js
+bench/.ab/

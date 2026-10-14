@@ -81,12 +81,12 @@ function environment () {
 // ---------------------------------------------------------------------------------------------------------------
 // Server process
 
-function startServer (variant, logPath) {
+function startServer (variant, logPath, extraEnv = {}) {
   const logFd = fs.openSync(logPath, 'w')
   const child = spawn(process.execPath, [path.join(__dirname, 'server.js'), variant], {
     cwd: __dirname,
     stdio: ['ignore', logFd, 'inherit', 'ipc'],
-    env: { ...process.env, NODE_ENV: 'production' }
+    env: { ...process.env, NODE_ENV: 'production', ...extraEnv }
   })
   fs.closeSync(logFd)
 
@@ -161,9 +161,9 @@ const r2 = (n) => (n === null ? null : Math.round(n * 100) / 100)
 // ---------------------------------------------------------------------------------------------------------------
 // One measured run
 
-async function measure (variant, round, config, tmpDir) {
+async function measure (variant, round, config, tmpDir, extraEnv = {}) {
   const logPath = path.join(tmpDir, `${variant}-r${round}.log`)
-  const server = startServer(variant, logPath)
+  const server = startServer(variant, logPath, extraEnv)
   const { port } = await server.ready
   const url = `http://127.0.0.1:${port}${PATH}`
   const problems = []
@@ -388,7 +388,11 @@ async function main () {
   if (runs.some((r) => r.problems.length > 0)) process.exitCode = 1
 }
 
-main().catch((err) => {
-  process.stderr.write(`benchmark failed: ${err && err.stack}\n`)
-  process.exitCode = 1
-})
+if (require.main === module) {
+  main().catch((err) => {
+    process.stderr.write(`benchmark failed: ${err && err.stack}\n`)
+    process.exitCode = 1
+  })
+}
+
+module.exports = { measure, median, environment }

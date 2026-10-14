@@ -13,7 +13,8 @@
 
 const { randomUUID } = require('node:crypto')
 const express = require('express')
-const observe = require('express-observe')
+// EXPRESS_OBSERVE_MODULE lets bench/ab.js load another copy of the package (e.g. the main branch) for A/B runs.
+const observe = require(process.env.EXPRESS_OBSERVE_MODULE || 'express-observe')
 const pinoHttp = require('pino-http')
 
 const VARIANTS = {

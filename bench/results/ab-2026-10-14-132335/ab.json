@@ -1,0 +1,282 @@
+{
+  "environment": {
+    "date": "2026-10-14T13:17:57.249Z",
+    "nodeVersion": "v22.23.2",
+    "expressVersion": "4.22.3",
+    "expressObserveVersion": "0.1.0-dev.0",
+    "autocannonVersion": "8.0.0",
+    "pinoHttpVersion": "11.0.0",
+    "pinoVersion": "10.4.0",
+    "os": "Windows_NT 10.0.26200 (win32 x64)",
+    "osVersion": "Windows 11 Pro",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i5-12500",
+    "logicalCpus": 12,
+    "totalMemGb": 63.7,
+    "powerPlan": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Yüksek performans)",
+    "sourceCommit": "89a7e57",
+    "workingTreeDirty": true
+  },
+  "config": {
+    "aRef": "main",
+    "same": true,
+    "variants": [
+      "ids-timing",
+      "full-log"
+    ],
+    "rounds": 6,
+    "durationSec": 10,
+    "warmupSec": 3,
+    "connections": 50,
+    "pipelining": 1
+  },
+  "a": {
+    "label": "main (89a7e57)"
+  },
+  "b": {
+    "label": "main (89a7e57) again"
+  },
+  "rows": [
+    {
+      "variant": "ids-timing",
+      "aCpuUsPerReq": 150.88,
+      "bCpuUsPerReq": 162.32,
+      "medianPairedDiffUs": 6.77,
+      "medianPairedDiffPct": 4.49,
+      "roundsBLower": 0,
+      "rounds": 6,
+      "aRps": 6954.01,
+      "bRps": 6212.19,
+      "problems": []
+    },
+    {
+      "variant": "full-log",
+      "aCpuUsPerReq": 236.58,
+      "bCpuUsPerReq": 240.14,
+      "medianPairedDiffUs": 4.77,
+      "medianPairedDiffPct": 2.02,
+      "roundsBLower": 1,
+      "rounds": 6,
+      "aRps": 4609.65,
+      "bRps": 4373.28,
+      "problems": []
+    }
+  ],
+  "runs": [
+    {
+      "side": "A",
+      "variant": "ids-timing",
+      "round": 1,
+      "cpuUsPerReq": 161.66,
+      "rps": 6451.6,
+      "p99": 28.43,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "ids-timing",
+      "round": 1,
+      "cpuUsPerReq": 165.07,
+      "rps": 5798,
+      "p99": 29.66,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 1,
+      "cpuUsPerReq": 251.17,
+      "rps": 4220.28,
+      "p99": 71.52,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 1,
+      "cpuUsPerReq": 243.38,
+      "rps": 4385.19,
+      "p99": 69,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "ids-timing",
+      "round": 2,
+      "cpuUsPerReq": 168.7,
+      "rps": 6134,
+      "p99": 26.64,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "ids-timing",
+      "round": 2,
+      "cpuUsPerReq": 157.84,
+      "rps": 6799.46,
+      "p99": 26.04,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 2,
+      "cpuUsPerReq": 234.94,
+      "rps": 4361.37,
+      "p99": 67.57,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 2,
+      "cpuUsPerReq": 221.98,
+      "rps": 4961.19,
+      "p99": 58.25,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "ids-timing",
+      "round": 3,
+      "cpuUsPerReq": 143.98,
+      "rps": 7454.37,
+      "p99": 19.98,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "ids-timing",
+      "round": 3,
+      "cpuUsPerReq": 188.27,
+      "rps": 5190.2,
+      "p99": 42.15,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 3,
+      "cpuUsPerReq": 253.62,
+      "rps": 4258.1,
+      "p99": 70.48,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 3,
+      "cpuUsPerReq": 259.24,
+      "rps": 4105.61,
+      "p99": 75.37,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "ids-timing",
+      "round": 4,
+      "cpuUsPerReq": 148.23,
+      "rps": 7134.55,
+      "p99": 23.3,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "ids-timing",
+      "round": 4,
+      "cpuUsPerReq": 147.01,
+      "rps": 7108.55,
+      "p99": 20.99,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 4,
+      "cpuUsPerReq": 218.94,
+      "rps": 4985.55,
+      "p99": 59.96,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 4,
+      "cpuUsPerReq": 215.02,
+      "rps": 5136.19,
+      "p99": 55.66,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "ids-timing",
+      "round": 5,
+      "cpuUsPerReq": 144.98,
+      "rps": 7324.4,
+      "p99": 22.17,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "ids-timing",
+      "round": 5,
+      "cpuUsPerReq": 153.7,
+      "rps": 6955.46,
+      "p99": 22.64,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 5,
+      "cpuUsPerReq": 221.48,
+      "rps": 4996.9,
+      "p99": 58.91,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 5,
+      "cpuUsPerReq": 236.89,
+      "rps": 4529.91,
+      "p99": 62.25,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "ids-timing",
+      "round": 6,
+      "cpuUsPerReq": 159.56,
+      "rps": 6290.37,
+      "p99": 24.46,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "ids-timing",
+      "round": 6,
+      "cpuUsPerReq": 154.74,
+      "rps": 6468,
+      "p99": 25.94,
+      "problems": []
+    },
+    {
+      "side": "B",
+      "variant": "full-log",
+      "round": 6,
+      "cpuUsPerReq": 296.47,
+      "rps": 3450.55,
+      "p99": 91.42,
+      "problems": []
+    },
+    {
+      "side": "A",
+      "variant": "full-log",
+      "round": 6,
+      "cpuUsPerReq": 293.28,
+      "rps": 3260.46,
+      "p99": 94.15,
+      "problems": []
+    }
+  ]
+}
