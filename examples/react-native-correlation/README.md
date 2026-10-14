@@ -50,6 +50,8 @@ Starts the example API in-process and plays the five scenarios with the **same**
    npx expo start
    ```
 
+   An Android emulator needs several GB (system image about 3.5 GB unpacked, data partition up to about 7 GB). To keep that off the system drive, set the user environment variable `ANDROID_AVD_HOME` to a folder on another drive before creating the AVD; the system image folder can be moved there too and replaced by a directory junction (Windows) or symlink.
+
 3. Open it in an Android emulator (the default base URL `http://10.0.2.2:4000` reaches your computer), the iOS simulator (`http://127.0.0.1:4000`), or Expo Go on a phone. A phone needs your computer's LAN address in the app and the server started with `HOST=0.0.0.0`; only do that on a trusted network.
 4. Tap the scenarios. Each attempt is printed to the Metro console as a `client-attempt {...}` line.
 5. Copy the console output to a file, for example `client.log`, and join it with the server log:
