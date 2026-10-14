@@ -123,7 +123,8 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 ## CI (branch feat/ci)
 
 - [x] GitHub Actions: Ubuntu and Windows, Node 22, npm ci, npm test (Express 4 and 5, example), lab:check; read-only permissions; push runs, fork PRs run separately — 2026-10-14
-- [ ] First green run on both operating systems; then merge
+- [x] Green on ubuntu-latest and windows-latest (first Linux run of the project); actions bumped to v7 after a Node 20 deprecation warning — 2026-10-14
+- [ ] Owner review; merge feat/ci into main
 
 ## Repository
 
