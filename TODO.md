@@ -83,7 +83,9 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] correlation.js, join.js, join-cli.js, server.js, node-client.js as workspace examples/react-native-correlation — 2026-10-14
 - [x] 16 tests over real HTTP: single attempt, Server-Timing wait, retry with two IDs, client timeout joined to an interrupted record, both trust settings, unreachable server, invalid ID generator, path rule, attempt cap, lenient Server-Timing parsing, Metro console extraction, wrapped server records, duplicate records, output sanitizing, full session through the join CLI — 2026-10-14
 - [x] Expo SDK 57 app (App.js, metro.config.js); expo install --check clean; expo export --platform android builds Hermes bytecode containing the shared module — 2026-10-14
-- [ ] Run the app on an Android emulator or a phone and record what the join shows (needs a device or an emulator image)
+- [x] Ran on an Android 15 emulator via Expo Go 57: five scenarios, six attempts, all joined; results and screenshot in examples/react-native-correlation/results/ — 2026-10-14
+- [x] Fixed: SafeAreaView deprecated in RN 0.86 and overlapping the Android status bar; switched to react-native-safe-area-context — 2026-10-14
+- [ ] Run on a physical phone over a real network, and on iOS
 - [ ] Owner review; merge feat/react-native-demo into main and push
 
 ## Repository
@@ -110,3 +112,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — v0.1 pushed to github.com/erenulutas0/observability (main, 5 commits after a scan for personal or sensitive data). MIT LICENSE added. analyze CLI implemented on branch feat/analyze-cli: 159 tests passing in total; mutation spot-check 10 of 11 caught, the survivor being a redundant safeguard (Node 22 readline already propagates stream errors; comment corrected).
 - 2026-10-14 — analyze CLI merged into main and pushed. doctor implemented on branch feat/doctor: 40 tests, 199 in total; mutation spot-check 16 of 16 caught. Found and fixed during testing: the per-request timeout was an idle timeout that a trickling server could defeat. Verified against the running demo: all 9 checks pass. Git Bash rewrites Unix-looking arguments; documented in the README.
 - 2026-10-14 — doctor merged into main and pushed. React Native correlation demo on branch feat/react-native-demo: shared correlation module with 16 tests (215 in total across workspaces), Expo SDK 57 app bundled for Android but not run on a device; no emulator image or device was available.
+- 2026-10-14 — Owner approved an emulator. Installed an Android 35 x86_64 emulator image and a dedicated AVD. The app ran in Expo Go; all six attempts of a session joined with the server log. Fixed the SafeAreaView deprecation found on the device.

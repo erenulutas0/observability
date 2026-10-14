@@ -20,7 +20,9 @@ PLAN.md's fourth follow-up: a small React Native client that reads `X-Request-Id
 
 - Correlation and join: Jest tests over real HTTP against the example API.
 - App: `expo install --check` and `expo export --platform android` (Hermes bytecode), and a check that the shared module is inside the bundle.
-- Not verified: the app on an emulator or a device. No system image or device was available, and installing one changes the owner's machine. The README states this.
+- Android emulator (owner approved installing one): Android 15 x86_64 image, Expo Go 57.0.9. All five scenarios ran; all six attempts joined. See examples/react-native-correlation/results/2026-10-14-android-emulator.md.
+- Not verified: a physical phone on a real network, and iOS.
+- The emulator run found that `SafeAreaView` from `react-native` is deprecated in 0.86 and did not clear the Android status bar; the app now uses react-native-safe-area-context.
 
 ## Consequences
 

@@ -42,7 +42,7 @@ Starts the example API in-process and plays the five scenarios with the **same**
    node examples/react-native-correlation/server.js > access.jsonl
    ```
 
-2. Install and start the app (Expo SDK 57, React Native 0.86). The app folder is deliberately outside the npm workspace, so the root install does not download Expo:
+2. Install and start the app (Expo SDK 57, React Native 0.86, react-native-safe-area-context 5.7). The app folder is deliberately outside the npm workspace, so the root install does not download Expo:
 
    ```bash
    cd examples/react-native-correlation/app
@@ -78,7 +78,8 @@ Accepted IDs are correlation data, not identity: any client can choose them, rec
 
 - The correlation and join logic: 16 Jest tests against the real example API, including retries, client timeouts, unreachable servers, both trust settings and the join CLI.
 - The app: the JavaScript bundle is built with `npx expo export --platform android` (Hermes bytecode) and `npx expo install --check` reports matching dependency versions.
-- **Not verified here:** running the app on an emulator or a phone. No device or emulator image was available when this was written, so the UI has not been exercised. Treat the first run on a device as the real test.
+- The app on an **Android emulator** (Android 15, Expo Go 57): all five scenarios ran and all six attempts joined with the server log. Results, screenshot and limits: [results/2026-10-14-android-emulator.md](results/2026-10-14-android-emulator.md).
+- **Not verified yet:** a physical phone on a real network, and iOS.
 
 ## What this does not show
 
