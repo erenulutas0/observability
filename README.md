@@ -4,6 +4,7 @@ Lightweight, privacy-first observability middleware for Express 4: request IDs, 
 
 - Package and usage: [packages/express-observe/README.md](packages/express-observe/README.md)
 - Demo that compares failure and slowness mechanisms: [demo/README.md](demo/README.md)
+- React Native client correlation example: [examples/react-native-correlation/README.md](examples/react-native-correlation/README.md)
 - Design: [ARCHITECTURE.md](ARCHITECTURE.md) · decisions: [docs/decisions/](docs/decisions/) · roadmap: [PLAN.md](PLAN.md) · progress: [TODO.md](TODO.md)
 
 ```bash

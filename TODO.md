@@ -75,7 +75,16 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] src/doctor.js and the doctor subcommand; shared record validation with analyze — 2026-10-14
 - [x] 40 tests: healthy integration, ten misconfigurations (no middleware, late registration, double logging, missing mount, URL and header leaks through extend, replayed IDs, raw-path labels, malformed Server-Timing, disabled timing, client-ID trust), unreadable log, unreachable server, safety limits (GET only, no credentials, request budget, no redirects, body cap, hard deadline, remote refusal, usage errors), loopback detection, Server-Timing grammar — 2026-10-14
 - [x] Fixed during testing: per-request timeout was an idle timeout, so a trickling server could hold doctor open; now a hard deadline with --timeout — 2026-10-14
-- [ ] Owner review; merge feat/doctor into main and push
+- [x] Merged into main (fast-forward) and pushed — 2026-10-14
+
+## React Native correlation demo (branch feat/react-native-demo)
+
+- [x] ADR-0006: shared correlation module, per-attempt IDs, trust decision, vocabulary, app outside the workspace — 2026-10-14
+- [x] correlation.js, join.js, join-cli.js, server.js, node-client.js as workspace examples/react-native-correlation — 2026-10-14
+- [x] 16 tests over real HTTP: single attempt, Server-Timing wait, retry with two IDs, client timeout joined to an interrupted record, both trust settings, unreachable server, invalid ID generator, path rule, attempt cap, lenient Server-Timing parsing, Metro console extraction, wrapped server records, duplicate records, output sanitizing, full session through the join CLI — 2026-10-14
+- [x] Expo SDK 57 app (App.js, metro.config.js); expo install --check clean; expo export --platform android builds Hermes bytecode containing the shared module — 2026-10-14
+- [ ] Run the app on an Android emulator or a phone and record what the join shows (needs a device or an emulator image)
+- [ ] Owner review; merge feat/react-native-demo into main and push
 
 ## Repository
 
@@ -88,7 +97,6 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges
 - [ ] analyze: bounded-memory histogram mode for very large logs; per-group slowest; side-by-side comparison of two time windows or releases
 - [ ] diagnostic-lab second wave: L3 bounded CPU, L4 prebuilt large JSON, L5 fast API + slow client, L6 one operation / several attempts; small Node client measuring clientAttemptMs / operationMs
-- [ ] React Native correlation demo (X-Request-Id + Server-Timing on the client)
 - [ ] Express 5 compatibility
 - [ ] Optional OpenTelemetry trace-id correlation
 
@@ -101,3 +109,4 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - 2026-10-14 — Phase 5: benchmark harness and first session. Medians of 3 runs: baseline 8039 req/s and 128 µs server CPU per request; ids-timing 5135 req/s (-36%), 194 µs; full-log 3652 req/s (-55%), 287 µs; pino-http 4349 req/s (-46%), 222 µs. Ranges are wide because a VirtualBox VM and Docker were running. Profiles show no single hotspot: express-observe plus on-headers/on-finished account for about 12% (ids-timing) and 21% (full-log) of server self time, spread across per-request setup, synchronous file writes and on-finished. No code was changed in this phase.
 - 2026-10-14 — v0.1 pushed to github.com/erenulutas0/observability (main, 5 commits after a scan for personal or sensitive data). MIT LICENSE added. analyze CLI implemented on branch feat/analyze-cli: 159 tests passing in total; mutation spot-check 10 of 11 caught, the survivor being a redundant safeguard (Node 22 readline already propagates stream errors; comment corrected).
 - 2026-10-14 — analyze CLI merged into main and pushed. doctor implemented on branch feat/doctor: 40 tests, 199 in total; mutation spot-check 16 of 16 caught. Found and fixed during testing: the per-request timeout was an idle timeout that a trickling server could defeat. Verified against the running demo: all 9 checks pass. Git Bash rewrites Unix-looking arguments; documented in the README.
+- 2026-10-14 — doctor merged into main and pushed. React Native correlation demo on branch feat/react-native-demo: shared correlation module with 16 tests (215 in total across workspaces), Expo SDK 57 app bundled for Android but not run on a device; no emulator image or device was available.

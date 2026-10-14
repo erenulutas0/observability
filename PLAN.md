@@ -77,7 +77,7 @@ Kök `package.json` npm workspaces kullanır (`packages/*`).
 1. `diagnostic-lab` ikinci dalga: L3 sınırlı CPU işi, L4 önceden üretilmiş büyük sentetik JSON, L5 hızlı API + yavaş istemci işi, L6 aynı mantıksal işlemde birden çok fiziksel deneme. Küçük bir Node istemci betiği ile `clientAttemptMs` / `operationMs` ölçülür; kabul koşulu: sunucu verisinden istemci kök nedeni "kesinleştirilmez".
 2. `express-observe analyze`: JSON log dosyasından route bazında istek sayısı, hata oranı, p50/p95/p99 (`headerDurationMs` ve `durationMs` ayrı) çıkaran CLI. Girdi yalnız log dosyasıdır; senaryo etiketi gizli ipucu olarak verilmez. **Uygulandı (2026-10-14, ADR-0004).**
 3. `express-observe doctor`: middleware sırası, header varlığı, çift kayıt gibi entegrasyon kontrolleri (sunucuya müdahale sınırları ayrıca tasarlanacak). **Uygulandı (2026-10-14, ADR-0005): dışarıdan HTTP ile, yalnız loopback, yalnız GET, sınırlı istek ve süre.**
-4. React Native korelasyon demosu: istemcide `X-Request-Id` + `Server-Timing` okuyup "hissedilen gecikme" ile backend süresini ayıran örnek; `trustIncoming: true` burada açıkça açılır. Yalnızca gerçek RN istemci zamanı ayrılırsa; web demosu mobil kanıt sayılmaz.
+4. React Native korelasyon demosu: istemcide `X-Request-Id` + `Server-Timing` okuyup "hissedilen gecikme" ile backend süresini ayıran örnek; `trustIncoming: true` burada açıkça açılır. Yalnızca gerçek RN istemci zamanı ayrılırsa; web demosu mobil kanıt sayılmaz. **Uygulandı (2026-10-14, ADR-0006): korelasyon mantığı Node'da test edildi, Expo uygulaması paketlendi; cihazda henüz çalıştırılmadı.**
 5. Express 5 uyumluluğu; isteğe bağlı OpenTelemetry trace-id korelasyonu.
 
 ## Not

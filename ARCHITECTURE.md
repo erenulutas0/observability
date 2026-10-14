@@ -243,7 +243,7 @@ packages/express-observe/
 - Memory: two `Float64Array` values per finished request; no bounded mode yet.
 - Report JSON carries `reportVersion: 1`. Exit codes 0 / 1 / 2 as in the ADR.
 
-## 12. `express-observe doctor` (CLI) **[implemented on branch feat/doctor, ADR-0005]**
+## 12. `express-observe doctor` (CLI) **[implemented, ADR-0005]**
 
 `src/doctor.js` probes a running server from the outside; it never loads application code.
 
@@ -252,6 +252,21 @@ packages/express-observe/
 - Header checks: request ID present, valid and unique; client-ID policy (info); Server-Timing well-formed with an `app` entry; unmatched path observed.
 - With `--log`: the file is streamed read-only, only lines mentioning a probe's request ID are parsed, using the same record validation as `analyze`. Checks: one record per probe, route labels (null on a successful probe, raw path on the unmatched probe, a route equal to a concrete ID-like path), markers anywhere in the file.
 - Output: text or `--json` (`reportVersion: 1`); every log- or response-derived string printed as printable ASCII. Exit codes 0 / 1 / 2.
+
+## 13. React Native correlation demo **[implemented on branch feat/react-native-demo, ADR-0006]**
+
+```
+examples/react-native-correlation/
+├── correlation.js   platform-neutral traced client: one request ID per attempt, Server-Timing parsing, timeouts, retries
+├── join.js          joins client attempts with access-log records by sent ID, then by response ID; honest readings
+├── join-cli.js      node join-cli.js <client-log> <access-log>
+├── server.js        example API (loopback, trustIncoming: true, /api mount, allowlisted delays and sizes)
+├── node-client.js   same session in Node, for development and tests (not mobile evidence)
+├── test/            Jest, real HTTP against server.js
+└── app/             Expo SDK 57 app, outside the npm workspace, imports ../correlation.js via Metro watchFolders
+```
+
+The client never uploads its attempts; they are printed to the console and joined offline.
 
 ## 7. Express 5 **[idea]**
 

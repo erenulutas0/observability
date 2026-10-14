@@ -28,7 +28,8 @@ Durable instructions for any agent or contributor. Keep this file short; details
 - Jest + Supertest in `packages/express-observe/test/`. Tests assert externally observable behaviour (headers, status, emitted records), not internals.
 - Never weaken or delete a failing test to get green. If the contract must change, see Workflow above.
 - Client-disconnect tests use a real `net`/`http` socket, not mocks.
-- `npm run lab:check` (demo scenarios with assertions) must pass as well as `npm test`.
+- `npm run lab:check` (demo scenarios with assertions) must pass as well as `npm test`, which runs every workspace with tests.
+- The Expo app in `examples/react-native-correlation/app` is outside the workspace; check it with `npx expo install --check` and `npm run check:bundle` there. Say so explicitly whenever it has not been run on a device.
 
 ## Docs
 
