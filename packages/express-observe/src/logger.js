@@ -85,7 +85,7 @@ function buildRecord (fields) {
     status: fields.status,
     headerDurationMs: fields.headerDurationMs === null ? null : roundMs(fields.headerDurationMs),
     durationMs: roundMs(fields.durationMs),
-    eventLoopDelayMs: roundMs(fields.eventLoopDelayMs),
+    eventLoopDelayMs: fields.eventLoopDelayMs === null ? null : roundMs(fields.eventLoopDelayMs),
     termination: fields.termination
   }
 }

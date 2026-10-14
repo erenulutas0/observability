@@ -32,3 +32,12 @@ A middleware cannot measure that wait per request. Node does not expose when a r
 - The record shape changes only for applications that enable the option. Consumers must treat the field as optional.
 - One extra timer callback every `resolutionMs` per middleware instance when enabled.
 - diagnostic-lab enables it, so L3 can show the field next to the gap it explains.
+
+## Addendum (2026-10-14): `null` when there is no measurement
+
+An external review of the project summary asked that "no sample" not be reported as `0`. The first request after start-up started the sampler, finished before the first tick, and was logged with `eventLoopDelayMs: 0`, which reads as "no delay" although a block before the sampler started is invisible.
+
+- The field is now `number | null`. It is `null` when the sampler is not running, or has not completed a tick yet and no tick is overdue. Once the sampler has a baseline, `0` means no delay above timer granularity was seen.
+- `schemaVersion` stays 1: the field is opt-in and the only change is that one value can now be `null`, which `analyze` already accepted.
+- Test: "is null, not 0, before the sampler has any measurement" (1 s interval, so no tick can complete during the request). Removing the rule makes it fail.
+- The README now states the method (own interval sampler, not `monitorEventLoopDelay`), the window, the aggregation (maximum), the ring buffer of 256 samples with no reset, and the sentence the review proposed.

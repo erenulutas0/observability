@@ -151,6 +151,15 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
     }
   })
 
+  test('is null, not 0, before the sampler has any measurement', async () => {
+    // A 1 s interval guarantees no tick completes during this request, so the sampler has no baseline yet.
+    const { app, waitFor } = appWith({ eventLoop: { enabled: true, resolutionMs: 1000 } })
+    await request(app).get('/fast')
+    const [record] = await waitFor(1)
+    expect(Object.keys(record)).toContain('eventLoopDelayMs')
+    expect(record.eventLoopDelayMs).toBeNull()
+  })
+
   test('is not added when logging is disabled, and the option is validated', () => {
     expect(() => observe({ eventLoop: { enabled: true }, log: { enabled: false } })).not.toThrow()
     for (const eventLoop of [{ enabled: 'yes' }, { resolutionMs: 1 }, { resolutionMs: 5000 }, { resolutionMs: 2.5 }, { interval: 10 }]) {
