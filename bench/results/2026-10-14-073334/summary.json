@@ -1,0 +1,203 @@
+{
+  "environment": {
+    "date": "2026-10-14T07:33:33.825Z",
+    "nodeVersion": "v22.23.2",
+    "expressVersion": "4.22.3",
+    "expressObserveVersion": "0.1.0-dev.0",
+    "autocannonVersion": "8.0.0",
+    "pinoHttpVersion": "11.0.0",
+    "pinoVersion": "10.4.0",
+    "os": "Windows_NT 10.0.26200 (win32 x64)",
+    "osVersion": "Windows 11 Pro",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i5-12500",
+    "logicalCpus": 12,
+    "totalMemGb": 63.7,
+    "powerPlan": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Y�ksek performans)",
+    "sourceCommit": "uncommitted working tree",
+    "workingTreeDirty": true
+  },
+  "config": {
+    "durationSec": 15,
+    "warmupSec": 5,
+    "connections": 50,
+    "rounds": 3,
+    "pipelining": 1,
+    "variants": [
+      "baseline",
+      "ids-timing",
+      "full-log",
+      "pino-http"
+    ],
+    "out": "E:\\ev-projesi-observability\\bench\\results"
+  },
+  "rows": [
+    {
+      "variant": "baseline",
+      "runs": 3,
+      "problems": [],
+      "rps": {
+        "median": 8038.67,
+        "min": 7040.27,
+        "max": 8283.74
+      },
+      "p50": {
+        "median": 5.71,
+        "min": 5.35,
+        "max": 6.18
+      },
+      "p95": {
+        "median": 13.93,
+        "min": 13.87,
+        "max": 17.03
+      },
+      "p99": {
+        "median": 21.1,
+        "min": 21.09,
+        "max": 26.66
+      },
+      "cpuPer1k": {
+        "median": 128.24,
+        "min": 120.91,
+        "max": 137.24
+      },
+      "maxRssMb": {
+        "median": 127.63,
+        "min": 124.7,
+        "max": 131.62
+      },
+      "logBytesPerLine": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "rpsVsBaselinePct": 0,
+      "p99VsBaselinePct": 0
+    },
+    {
+      "variant": "ids-timing",
+      "runs": 3,
+      "problems": [],
+      "rps": {
+        "median": 5135.07,
+        "min": 3915.47,
+        "max": 5685.94
+      },
+      "p50": {
+        "median": 9.12,
+        "min": 8.33,
+        "max": 11.48
+      },
+      "p95": {
+        "median": 20.93,
+        "min": 18.76,
+        "max": 28.86
+      },
+      "p99": {
+        "median": 33.15,
+        "min": 30.32,
+        "max": 44.42
+      },
+      "cpuPer1k": {
+        "median": 193.63,
+        "min": 176.16,
+        "max": 214.79
+      },
+      "maxRssMb": {
+        "median": 131.9,
+        "min": 130.92,
+        "max": 138.86
+      },
+      "logBytesPerLine": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "rpsVsBaselinePct": -36.12,
+      "p99VsBaselinePct": 57.11
+    },
+    {
+      "variant": "full-log",
+      "runs": 3,
+      "problems": [],
+      "rps": {
+        "median": 3652.2,
+        "min": 2668.27,
+        "max": 4479.14
+      },
+      "p50": {
+        "median": 9.67,
+        "min": 7.61,
+        "max": 12.41
+      },
+      "p95": {
+        "median": 43.85,
+        "min": 38.3,
+        "max": 56.99
+      },
+      "p99": {
+        "median": 81.91,
+        "min": 65.55,
+        "max": 119.34
+      },
+      "cpuPer1k": {
+        "median": 287.27,
+        "min": 232.44,
+        "max": 333.42
+      },
+      "maxRssMb": {
+        "median": 139.07,
+        "min": 131.25,
+        "max": 155.52
+      },
+      "logBytesPerLine": {
+        "median": 299.78,
+        "min": 299.78,
+        "max": 299.79
+      },
+      "rpsVsBaselinePct": -54.57,
+      "p99VsBaselinePct": 288.2
+    },
+    {
+      "variant": "pino-http",
+      "runs": 3,
+      "problems": [],
+      "rps": {
+        "median": 4349.07,
+        "min": 3151.27,
+        "max": 5245.67
+      },
+      "p50": {
+        "median": 7.38,
+        "min": 6.13,
+        "max": 10.02
+      },
+      "p95": {
+        "median": 35.57,
+        "min": 28.21,
+        "max": 51.54
+      },
+      "p99": {
+        "median": 59.22,
+        "min": 46.85,
+        "max": 83.33
+      },
+      "cpuPer1k": {
+        "median": 222.35,
+        "min": 199.65,
+        "max": 287.63
+      },
+      "maxRssMb": {
+        "median": 162.71,
+        "min": 155.45,
+        "max": 168.25
+      },
+      "logBytesPerLine": {
+        "median": 169,
+        "min": 169,
+        "max": 169
+      },
+      "rpsVsBaselinePct": -45.9,
+      "p99VsBaselinePct": 180.66
+    }
+  ]
+}

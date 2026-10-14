@@ -1,0 +1,73 @@
+CPU profiles recorded right after the benchmark session on the same machine (node bench/profile.js <variant>).
+Self time = samples where the function itself was on top of the stack; callees are counted separately.
+
+== ids-timing: 9042 samples, 10 s under load (50 connections)
+top 15 self time overall:
+ 14.59%  writev  
+  6.06%  (idle)  
+  3.67%  writeHead  node:_http_server:351
+  3.44%  (program)  
+  3.44%  (garbage collector)  
+  3.26%  end  node:_http_outgoing:1087
+  2.65%  expressInit  express/lib/middleware/init.js:29
+  2.58%  expressObserve  express-observe/src/index.js:48
+  2.30%  assignRequestId  express-observe/src/index.js:73
+  2.19%  parse  content-type/index.js:106
+  2.15%  next  express/lib/router/index.js:177
+  2.07%  _addListener  node:events:547
+  1.98%  send  express/lib/response.js:111
+  1.85%  _storeHeader  node:_http_outgoing:455
+  1.79%  onHeaders  on-headers/index.js:62
+express-observe + on-headers + on-finished + ee-first self time:  12.38%
+  2.58%  expressObserve  express-observe/src/index.js:48
+  2.30%  assignRequestId  express-observe/src/index.js:73
+  1.79%  onHeaders  on-headers/index.js:62
+  1.53%  setWriteHeadHeaders  on-headers/index.js:119
+  1.52%  attachHeaderHook  express-observe/src/index.js:89
+  1.03%  onResponseHeaders  express-observe/src/index.js:93
+  0.58%  writeHead  on-headers/index.js:34
+  0.40%  formatEntry  express-observe/src/server-timing.js:33
+  0.21%  createServerTiming  express-observe/src/server-timing.js:52
+  0.13%  seal  express-observe/src/server-timing.js:94
+  0.13%  nowNs  express-observe/src/server-timing.js:9
+  0.10%  generateRequestId  express-observe/src/request-id.js:21
+  0.03%  elapsedMs  express-observe/src/server-timing.js:13
+  0.03%  shouldTrust  express-observe/src/request-id.js:58
+  0.02%  isValidRequestId  express-observe/src/request-id.js:14
+profile: <temp>/ids-timing.cpuprofile
+
+== full-log: 9006 samples, 10 s under load (50 connections)
+top 15 self time overall:
+ 11.85%  writev  
+  5.31%  writeBuffer  
+  5.09%  (idle)  
+  3.95%  (garbage collector)  
+  2.89%  onTerminated  express-observe/src/index.js:119
+  2.81%  (program)  
+  2.68%  writeHead  node:_http_server:351
+  2.40%  expressObserve  express-observe/src/index.js:48
+  2.33%  _addListener  node:events:547
+  2.28%  end  node:_http_outgoing:1087
+  2.19%  expressInit  express/lib/middleware/init.js:29
+  1.82%  parse  content-type/index.js:106
+  1.78%  assignRequestId  express-observe/src/index.js:73
+  1.49%  defaultSink  express-observe/src/logger.js:92
+  1.44%  _storeHeader  node:_http_outgoing:455
+express-observe + on-headers + on-finished + ee-first self time:  20.59%
+  2.89%  onTerminated  express-observe/src/index.js:119
+  2.40%  expressObserve  express-observe/src/index.js:48
+  1.78%  assignRequestId  express-observe/src/index.js:73
+  1.49%  defaultSink  express-observe/src/logger.js:92
+  1.32%  trackMatchedRoute  express-observe/src/route-template.js:82
+  1.28%  onHeaders  on-headers/index.js:62
+  1.23%  attachHeaderHook  express-observe/src/index.js:89
+  1.09%  attachListener  on-finished/index.js:141
+  1.02%  setWriteHeadHeaders  on-headers/index.js:119
+  0.67%  listener  on-finished/index.js:162
+  0.61%  onResponseHeaders  express-observe/src/index.js:93
+  0.59%  cleanup  ee-first/index.js:58
+  0.54%  attachFinishedListener  on-finished/index.js:91
+  0.46%  writeHead  on-headers/index.js:34
+  0.44%  first  ee-first/index.js:24
+profile: <temp>/full-log.cpuprofile
+

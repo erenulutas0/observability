@@ -1,0 +1,19 @@
+{
+  "name": "express-observe-bench",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reproducible overhead benchmarks for express-observe",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bench": "node run.js"
+  },
+  "dependencies": {
+    "autocannon": "8.0.0",
+    "express": "4.22.3",
+    "express-observe": "0.1.0-dev.0",
+    "pino-http": "11.0.0"
+  }
+}
