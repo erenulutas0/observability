@@ -198,6 +198,44 @@ observe({ log: { extend: (req, res) => ({ tenant: res.locals.tenantId }) } })
 
 Core fields always win, so an extension cannot overwrite `status`, `route` or `requestId`. An extension that throws or does not return an object is ignored and the core record is still written.
 
+## Analyzing logs
+
+The package ships a command-line tool that summarizes the JSON lines it writes, without a dashboard or a cloud account:
+
+```bash
+npx express-observe analyze access.log
+```
+
+```text
+METHOD-ROUTE           COUNT    5XX  INTERRUPTED  P50 MS  P95 MS  P99 MS  MAX MS  HEADER P95 MS
+---------------------  -----  -----  -----------  ------  ------  ------  ------  -------------
+GET /users/:id          4210   0.1%            3     4.2    18.9    61.0   412.7           17.8
+POST /orders             812   1.2%            9    22.5    95.1   240.3   980.2           94.6
+GET (unknown route)       77   0.0%            0     0.9     2.1       -     3.3            2.0
+```
+
+The numbers above are illustrative. Options:
+
+| Option | Meaning |
+|---|---|
+| `--by method-route\|route\|service\|release` | Grouping (default `method-route`) |
+| `--sort count\|p95\|p99\|errors\|interrupted` | Order of groups (default `count`) |
+| `--top N` | Number of groups shown, `0` for all (default 20) |
+| `--since`, `--until` | ISO 8601 time window |
+| `--slowest N` | Also list the N slowest finished requests with their request IDs, to look them up |
+| `--json` | Machine-readable report |
+
+Use `-` to read stdin, for example `docker logs api | npx express-observe analyze -`. Lines that are not express-observe records are skipped and counted, and records wrapped by another logger such as pino are recognised.
+
+What the report deliberately does:
+
+- Latency percentiles use **finished** requests only. Interrupted requests are counted separately.
+- p95 needs at least 20 values and p99 at least 100 in a group; with fewer they are shown as `-` instead of a misleading number.
+- It ends with notes derived from the data: unknown routes, interruptions and what they do not prove, mixed services or releases, withheld percentiles.
+- Text from the log is printed as plain ASCII, so a crafted log line cannot inject terminal escape codes.
+
+Exit codes: `0` report printed, `1` unreadable input or no valid records, `2` usage error. The full report shape is in `--json`; `reportVersion` changes on incompatible updates.
+
 ## Privacy defaults
 
 The middleware never writes request or response bodies, URLs or query strings, headers (including `Authorization`), cookies, IP addresses, user identifiers, error messages or stack traces. This is enforced by a test that plants sentinel values in each of those places and checks stdout and stderr.

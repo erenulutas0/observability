@@ -229,6 +229,20 @@ observe({
 
 Unknown options throw at construction time (fail fast at startup, never per request).
 
+## 11. `express-observe analyze` (CLI) **[implemented on branch feat/analyze-cli, ADR-0004]**
+
+```
+packages/express-observe/
+├── bin/express-observe.js   argument parsing (node:util parseArgs), subcommand dispatch, exit codes
+├── src/analyze.js           record validation, grouping, nearest-rank percentiles, honesty notes
+└── src/analyze-format.js    plain-text table; every log-derived string reduced to printable ASCII
+```
+
+- Input: files or stdin, JSON lines, LF or CRLF. A record must have `schemaVersion: 1` and valid core fields; extra top-level fields from wrapping loggers are ignored. Skipped lines are counted per reason.
+- Per group: count, finished, interrupted, status classes, 5xx rate, `durationMs` p50/p95/p99/max and `headerDurationMs` p50/p95/p99, computed from finished records only. p95 needs 20 values and p99 needs 100; otherwise `null`.
+- Memory: two `Float64Array` values per finished request; no bounded mode yet.
+- Report JSON carries `reportVersion: 1`. Exit codes 0 / 1 / 2 as in the ADR.
+
 ## 7. Express 5 **[idea]**
 
 `req.route`, `req.baseUrl`, `writeHead`, `finish`/`close` all survive in Express 5. Differences to handle later: path-to-regexp v8 syntax (`/*splat`, no bare `*`), and async handler rejections being routed to `next(err)` automatically (which makes the error story simpler, not harder).

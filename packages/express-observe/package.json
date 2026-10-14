@@ -13,8 +13,12 @@
     "url": "https://github.com/erenulutas0/observability/issues"
   },
   "main": "src/index.js",
+  "bin": {
+    "express-observe": "bin/express-observe.js"
+  },
   "files": [
     "src",
+    "bin",
     "README.md",
     "LICENSE"
   ],
@@ -27,7 +31,9 @@
     "observability",
     "request-id",
     "server-timing",
-    "access-log"
+    "access-log",
+    "cli",
+    "log-analysis"
   ],
   "scripts": {
     "test": "jest"

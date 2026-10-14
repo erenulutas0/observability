@@ -21,7 +21,7 @@ Durable instructions for any agent or contributor. Keep this file short; details
 - Runtime dependencies are limited to `on-headers` and `on-finished` unless a decision record says otherwise.
 - The middleware must never: throw into the request pipeline, call `next(err)` for its own failures, mutate headers after `res.headersSent`, or log bodies, URLs, query strings, headers, cookies, IPs, user identifiers, error messages or stack traces by default.
 - Durations use `process.hrtime.bigint()`. IDs use `crypto.randomUUID()`.
-- Public API surface is `observe(options)` plus `res.serverTiming`, `req.id`, and the documented record shape. Anything else is private.
+- Public API surface is `observe(options)` plus `res.serverTiming`, `req.id`, the documented record shape, and the `express-observe analyze` CLI (options, JSON report shape, exit codes). Anything else is private.
 
 ## Tests
 
