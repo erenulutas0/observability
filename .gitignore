@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+*.log
+.DS_Store
+# benchmark raw results are kept on purpose; only drop temp files
+bench/results/*.tmp
+
+# owner research notes (mention third-party products); kept local only, see ADR-0002
+TUM_ARASTIRMA.md

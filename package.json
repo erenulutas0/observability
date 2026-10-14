@@ -1,0 +1,22 @@
+{
+  "name": "express-observe-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Workspace for the express-observe package, demo and benchmarks",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "demo",
+    "bench"
+  ],
+  "scripts": {
+    "test": "npm test --workspace packages/express-observe",
+    "demo": "npm start --workspace demo",
+    "lab": "npm run lab --workspace demo",
+    "lab:check": "npm run lab:check --workspace demo",
+    "bench": "npm run bench --workspace bench"
+  }
+}
