@@ -106,4 +106,4 @@ function renderText (report, sources) {
   return out.join('\n') + '\n'
 }
 
-module.exports = { renderText }
+module.exports = { renderText, safe }

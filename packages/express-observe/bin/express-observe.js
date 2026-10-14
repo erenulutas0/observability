@@ -4,6 +4,7 @@
 // express-observe command-line entry point.
 //
 //   express-observe analyze [options] <file...>    summarize access-log files (use - for stdin)
+//   express-observe doctor [options] <url>         check a running server's integration (ADR-0005)
 //   express-observe --version | --help
 //
 // Exit codes: 0 report printed, 1 unreadable input or no valid records, 2 usage error.
@@ -13,6 +14,7 @@ const path = require('node:path')
 const { parseArgs } = require('node:util')
 const { createAnalyzer, analyzeStream, GROUP_BY, SORT_BY, MAX_SLOWEST, MIN_SAMPLES } = require('../src/analyze')
 const { renderText } = require('../src/analyze-format')
+const doctor = require('../src/doctor')
 
 const VERSION = require('../package.json').version
 
@@ -20,12 +22,16 @@ const MAIN_HELP = `express-observe ${VERSION}
 
 Usage:
   express-observe analyze [options] <file...>
+  express-observe doctor [options] <url>
   express-observe --version
   express-observe --help
 
 Commands:
   analyze   Summarize express-observe access-log files per route: counts, 5xx and
             interruption rates, latency percentiles. Run "express-observe analyze --help".
+  doctor    Send a few safe GET requests to a running server (loopback only by default)
+            and check the integration: request IDs, Server-Timing, and with --log,
+            one record per request, route labels and privacy. Run "express-observe doctor --help".
 `
 
 const ANALYZE_HELP = `Usage: express-observe analyze [options] <file...>
@@ -48,6 +54,30 @@ Latency percentiles use finished requests only. p95 needs at least ${MIN_SAMPLES
 least ${MIN_SAMPLES.p99} values in a group; with fewer they are reported as "-" (null in JSON).
 
 Exit codes: 0 report printed, 1 unreadable input or no valid records, 2 usage error.
+`
+
+const DOCTOR_HELP = `Usage: express-observe doctor [options] <url>
+
+Checks how express-observe is wired into a server that is already running, using a
+few GET requests. <url> is the origin only, e.g. http://127.0.0.1:3000.
+
+Options:
+  --path <path>      path to probe, repeatable, up to ${doctor.MAX_PATHS} (default /)
+  --log <file>       the server's access-log file; enables record, route and privacy checks
+  --header <name>    request ID header name (default X-Request-Id)
+  --wait <ms>        wait before reading --log, for buffered sinks (default 500, max 10000)
+  --timeout <ms>     hard time limit per request (default 5000, 1000 to 30000)
+  --allow-remote     allow a target that is not localhost or a loopback address
+  --json             print the report as JSON
+  -h, --help         show this help
+
+Safety: every probe is a GET without body, cookies or credentials; redirects are not
+followed; at most 2 probes per path plus 2 more, sent one at a time. Each probe is
+also sent with a random marker in a query parameter and a header. Only pass paths
+that are safe to request repeatedly. The log file is only read, never printed.
+
+Exit codes: 0 no failures (warnings allowed), 1 at least one failure, 2 usage error
+or refused target.
 `
 
 class UsageError extends Error {}
@@ -164,6 +194,64 @@ async function runAnalyze (argv) {
   process.stdout.write(options.json ? JSON.stringify(report, null, 2) + '\n' : renderText(report, names))
 }
 
+async function runDoctorCommand (argv) {
+  let parsed
+  try {
+    parsed = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: {
+        path: { type: 'string', multiple: true },
+        log: { type: 'string' },
+        header: { type: 'string' },
+        wait: { type: 'string' },
+        timeout: { type: 'string' },
+        'allow-remote': { type: 'boolean' },
+        json: { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' }
+      }
+    })
+  } catch (err) {
+    fail(`${err.message}\nRun "express-observe doctor --help" for usage.`, 2)
+    return
+  }
+  const { values, positionals } = parsed
+  if (values.help) {
+    process.stdout.write(DOCTOR_HELP)
+    return
+  }
+  if (positionals.length !== 1) {
+    fail('doctor needs exactly one target URL, e.g. http://127.0.0.1:3000\nRun "express-observe doctor --help" for usage.', 2)
+    return
+  }
+  if (values.wait !== undefined && !/^\d+$/.test(values.wait)) {
+    fail('--wait must be a non-negative integer (milliseconds)', 2)
+    return
+  }
+
+  let report
+  try {
+    report = await doctor.runDoctor({
+      url: positionals[0],
+      paths: values.path,
+      log: values.log ?? null,
+      header: values.header,
+      waitMs: values.wait === undefined ? undefined : Number(values.wait),
+      timeoutMs: values.timeout === undefined ? undefined : Number(values.timeout),
+      allowRemote: values['allow-remote'] === true,
+      version: VERSION
+    })
+  } catch (err) {
+    if (err instanceof doctor.UsageError) {
+      fail(`${err.message}\nRun "express-observe doctor --help" for usage.`, 2)
+      return
+    }
+    throw err
+  }
+  process.stdout.write(values.json ? JSON.stringify(report, null, 2) + '\n' : doctor.renderDoctorText(report))
+  process.exitCode = report.failures > 0 ? 1 : 0
+}
+
 async function main (argv) {
   const [command, ...rest] = argv
   if (command === undefined || command === '-h' || command === '--help') {
@@ -176,6 +264,7 @@ async function main (argv) {
     return
   }
   if (command === 'analyze') return runAnalyze(rest)
+  if (command === 'doctor') return runDoctorCommand(rest)
   fail(`unknown command ${JSON.stringify(command)}\n${MAIN_HELP}`, 2)
 }
 

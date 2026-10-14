@@ -322,6 +322,7 @@ async function analyzeStream (input, analyzer) {
 
 module.exports = {
   REPORT_VERSION,
+  classifyRecord: classify,
   MIN_SAMPLES,
   GROUP_BY,
   SORT_BY,

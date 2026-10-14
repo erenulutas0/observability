@@ -236,6 +236,54 @@ What the report deliberately does:
 
 Exit codes: `0` report printed, `1` unreadable input or no valid records, `2` usage error. The full report shape is in `--json`; `reportVersion` changes on incompatible updates.
 
+## Checking an integration
+
+`doctor` sends a few safe requests to your running server and checks how the middleware is wired in:
+
+```bash
+npx express-observe doctor http://127.0.0.1:3000 --path / --path /api/items/7 --log access.log
+```
+
+```text
+express-observe doctor: http://127.0.0.1:3000 (6 GET requests, log: access.log)
+
+PASS  reachable          6 of 6 probes answered
+FAIL  request-id-header  missing or invalid on some responses
+                         - GET /health: no X-Request-Id. observe() does not run for this path, or a middleware registered before it answered.
+PASS  request-id-unique  5 distinct ID(s)
+INFO  client-id-policy   not accepted: the server generated its own ID (the default)
+PASS  server-timing      well-formed with an app entry on 6 response(s)
+PASS  not-found-path     answered 404 with X-Request-Id
+PASS  log-record-count   5 request(s), one record each
+WARN  route-label        see details
+                         - GET /api/items/7: answered 200 but the route is null. If a router serves it, add the router's mount template to route.mounts; if a middleware answered, set res.locals.observeRoute.
+PASS  privacy-markers    markers not found in the log
+
+Result: 1 failure(s), 1 warning(s).
+```
+
+The output above is illustrative. What it checks:
+
+| Check | Catches |
+|---|---|
+| `request-id-header`, `not-found-path` | `observe()` registered too late, on a sub-path, or after a catch-all |
+| `request-id-unique` | a cache or middleware replaying the same ID |
+| `server-timing` | a missing or malformed header |
+| `log-record-count` (`--log`) | records missing, or written twice by two sinks |
+| `route-label` (`--log`) | routers missing from `route.mounts`, raw URLs used as labels |
+| `privacy-markers` (`--log`) | query strings or headers reaching the log through `extend` or another logger |
+
+Safety limits, enforced before any request is sent:
+
+- Only `localhost` and loopback addresses, unless you pass `--allow-remote`.
+- Only `GET`, with no body, cookies or credentials, and redirects are not followed. Pass only paths that are safe to request repeatedly.
+- At most 10 paths and 22 requests, one at a time, each with a hard time limit (`--timeout`, default 5 s). Response bodies are read up to 64 KiB.
+- Requests carry `User-Agent: express-observe-doctor/<version>` and random marker values in a query parameter and a header. The log file is only read; its lines are never printed.
+
+Other options: `--header` for a custom request ID header, `--wait` before reading a buffered log, `--json`. Exit codes: `0` no failures (warnings allowed), `1` at least one failure, `2` usage error or refused target.
+
+On Windows, Git Bash rewrites arguments that look like Unix paths, so `--path /api` arrives as `C:/Program Files/Git/api` and is rejected. Run doctor from PowerShell or cmd, or prefix the command with `MSYS_NO_PATHCONV=1` and give `--log` as a Windows path.
+
 ## Privacy defaults
 
 The middleware never writes request or response bodies, URLs or query strings, headers (including `Authorization`), cookies, IP addresses, user identifiers, error messages or stack traces. This is enforced by a test that plants sentinel values in each of those places and checks stdout and stderr.

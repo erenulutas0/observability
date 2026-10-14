@@ -229,7 +229,7 @@ observe({
 
 Unknown options throw at construction time (fail fast at startup, never per request).
 
-## 11. `express-observe analyze` (CLI) **[implemented on branch feat/analyze-cli, ADR-0004]**
+## 11. `express-observe analyze` (CLI) **[implemented, ADR-0004]**
 
 ```
 packages/express-observe/
@@ -242,6 +242,16 @@ packages/express-observe/
 - Per group: count, finished, interrupted, status classes, 5xx rate, `durationMs` p50/p95/p99/max and `headerDurationMs` p50/p95/p99, computed from finished records only. p95 needs 20 values and p99 needs 100; otherwise `null`.
 - Memory: two `Float64Array` values per finished request; no bounded mode yet.
 - Report JSON carries `reportVersion: 1`. Exit codes 0 / 1 / 2 as in the ADR.
+
+## 12. `express-observe doctor` (CLI) **[implemented on branch feat/doctor, ADR-0005]**
+
+`src/doctor.js` probes a running server from the outside; it never loads application code.
+
+- Validation before any connection: http(s) origin only, no credentials in the URL, loopback hosts unless `--allow-remote`, at most 10 paths starting with a single `/`.
+- Probes: 2 GETs per path, one GET with a random client request ID, one GET to a random unmatched path. Sequential; hard deadline per request (`--timeout`); bodies read up to 64 KiB; no redirects followed; `User-Agent: express-observe-doctor/<version>`; random markers in a query parameter and a header.
+- Header checks: request ID present, valid and unique; client-ID policy (info); Server-Timing well-formed with an `app` entry; unmatched path observed.
+- With `--log`: the file is streamed read-only, only lines mentioning a probe's request ID are parsed, using the same record validation as `analyze`. Checks: one record per probe, route labels (null on a successful probe, raw path on the unmatched probe, a route equal to a concrete ID-like path), markers anywhere in the file.
+- Output: text or `--json` (`reportVersion: 1`); every log- or response-derived string printed as printable ASCII. Exit codes 0 / 1 / 2.
 
 ## 7. Express 5 **[idea]**
 
