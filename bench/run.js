@@ -90,9 +90,9 @@ function environment () {
 // ---------------------------------------------------------------------------------------------------------------
 // Server process
 
-function startServer (variant, logPath, extraEnv = {}) {
+function startServer (variant, handler, logPath, extraEnv = {}) {
   const logFd = fs.openSync(logPath, 'w')
-  const child = spawn(process.execPath, [path.join(__dirname, 'server.js'), variant, config.handler], {
+  const child = spawn(process.execPath, [path.join(__dirname, 'server.js'), variant, handler], {
     cwd: __dirname,
     stdio: ['ignore', logFd, 'inherit', 'ipc'],
     env: { ...process.env, NODE_ENV: 'production', ...extraEnv }
@@ -172,7 +172,8 @@ const r2 = (n) => (n === null ? null : Math.round(n * 100) / 100)
 
 async function measure (variant, round, config, tmpDir, extraEnv = {}) {
   const logPath = path.join(tmpDir, `${variant}-r${round}.log`)
-  const server = startServer(variant, logPath, extraEnv)
+  // ab.js passes its own config without a handler: it measures the tiny handler.
+  const server = startServer(variant, config.handler ?? 'tiny', logPath, extraEnv)
   const { port } = await server.ready
   const url = `http://127.0.0.1:${port}${PATH}`
   const problems = []
