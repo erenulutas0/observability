@@ -18,7 +18,7 @@ Runs every scenario against an in-process server with a real HTTP client and pri
 npm run lab:check
 ```
 
-Same, plus assertions on every record. Exits with code 1 if any scenario misbehaves.
+Same, plus assertions on every record. At the end it compares the package's `getDiagnostics()` counters with the records and sink failures the lab received itself. Exits with code 1 if any scenario misbehaves or the counters disagree.
 
 ```bash
 node demo/lab.js --log=lab.jsonl

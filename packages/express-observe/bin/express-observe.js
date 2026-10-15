@@ -188,7 +188,8 @@ async function runAnalyze (argv) {
 
   const report = analyzer.report()
   if (report.input.records === 0) {
-    fail(`no express-observe records found in ${names.join(', ')} (${report.input.linesRead} line(s) read, ${report.input.skippedTotal} skipped)`, 1)
+    const hint = report.input.suspectUtf16 ? '; the input contains NUL characters and may be UTF-16, convert it to UTF-8' : ''
+    fail(`no express-observe records found in ${names.join(', ')} (${report.input.linesRead} line(s) read, ${report.input.skippedTotal} skipped${hint})`, 1)
     return
   }
   process.stdout.write(options.json ? JSON.stringify(report, null, 2) + '\n' : renderText(report, names))

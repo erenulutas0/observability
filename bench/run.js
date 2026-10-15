@@ -3,7 +3,7 @@
 // Overhead benchmark for express-observe. See bench/README.md for method and caveats.
 //
 //   node run.js [--duration=15] [--warmup=5] [--connections=50] [--rounds=3]
-//               [--variants=baseline,ids-timing,full-log,pino-http] [--out=results]
+//               [--variants=baseline,ids-timing,full-log,pino-http] [--handler=tiny|work] [--out=results]
 //
 // Every measured run gets a fresh server process. Variant order rotates each round to spread slow drift
 // (thermal, background load) across variants. Raw results, a manifest and a summary are written to
@@ -19,6 +19,12 @@ const autocannon = require('autocannon')
 const ALL_VARIANTS = ['baseline', 'ids-timing', 'full-log', 'pino-http']
 const LOGGING_VARIANTS = new Set(['full-log', 'pino-http'])
 const PATH = '/users/42'
+// Must match the handlers in server.js.
+const HANDLERS = {
+  tiny: 'a small JSON body, returned at once',
+  work: 'about 3 KB of JSON after a fixed amount of CPU work (about 0.27 ms)'
+}
+const KNOWN_ARGS = ['duration', 'warmup', 'connections', 'rounds', 'variants', 'handler', 'out']
 
 // ---------------------------------------------------------------------------------------------------------------
 // Configuration
@@ -26,7 +32,7 @@ const PATH = '/users/42'
 function parseArgs (argv) {
   const args = Object.fromEntries(argv.map((a) => {
     const m = /^--([a-z-]+)=(.*)$/.exec(a)
-    if (!m) throw new Error(`unrecognised argument ${a}`)
+    if (!m || !KNOWN_ARGS.includes(m[1])) throw new Error(`unrecognised argument ${a}`)
     return [m[1], m[2]]
   }))
   const int = (name, fallback) => {
@@ -36,7 +42,10 @@ function parseArgs (argv) {
   }
   const variants = (args.variants ?? ALL_VARIANTS.join(',')).split(',')
   for (const v of variants) if (!ALL_VARIANTS.includes(v)) throw new Error(`unknown variant ${v}`)
+  const handler = args.handler ?? 'tiny'
+  if (!Object.hasOwn(HANDLERS, handler)) throw new Error('--handler must be tiny or work')
   return {
+    handler,
     durationSec: int('duration', 15),
     warmupSec: int('warmup', 5),
     connections: int('connections', 50),
@@ -81,9 +90,9 @@ function environment () {
 // ---------------------------------------------------------------------------------------------------------------
 // Server process
 
-function startServer (variant, logPath, extraEnv = {}) {
+function startServer (variant, handler, logPath, extraEnv = {}) {
   const logFd = fs.openSync(logPath, 'w')
-  const child = spawn(process.execPath, [path.join(__dirname, 'server.js'), variant], {
+  const child = spawn(process.execPath, [path.join(__dirname, 'server.js'), variant, handler], {
     cwd: __dirname,
     stdio: ['ignore', logFd, 'inherit', 'ipc'],
     env: { ...process.env, NODE_ENV: 'production', ...extraEnv }
@@ -163,7 +172,8 @@ const r2 = (n) => (n === null ? null : Math.round(n * 100) / 100)
 
 async function measure (variant, round, config, tmpDir, extraEnv = {}) {
   const logPath = path.join(tmpDir, `${variant}-r${round}.log`)
-  const server = startServer(variant, logPath, extraEnv)
+  // ab.js passes its own config without a handler: it measures the tiny handler.
+  const server = startServer(variant, config.handler ?? 'tiny', logPath, extraEnv)
   const { port } = await server.ready
   const url = `http://127.0.0.1:${port}${PATH}`
   const problems = []
@@ -282,7 +292,7 @@ function summaryMarkdown (env, config, rows, sessionId) {
   const lines = []
   lines.push(`# Benchmark ${sessionId}`)
   lines.push('')
-  lines.push(`${config.rounds} independent runs per variant, ${config.connections} connections, ${config.durationSec} s measured after ${config.warmupSec} s warm-up, pipelining ${config.pipelining}, \`GET ${PATH}\` returning a small JSON body. Each cell is the **median of the per-run values, with the min–max range across runs**. Percentiles are computed per run from every response time and are never averaged across runs.`)
+  lines.push(`${config.rounds} independent runs per variant, ${config.connections} connections, ${config.durationSec} s measured after ${config.warmupSec} s warm-up, pipelining ${config.pipelining}, \`GET ${PATH}\` returning ${HANDLERS[config.handler]} (handler \`${config.handler}\`). Each cell is the **median of the per-run values, with the min–max range across runs**. Percentiles are computed per run from every response time and are never averaged across runs.`)
   lines.push('')
   lines.push('| Variant | req/s | vs baseline | p50 ms | p95 ms | p99 ms | p99 vs baseline | server CPU ms / 1k req | max RSS MB | log bytes / line |')
   lines.push('|---|---|---|---|---|---|---|---|---|---|')
@@ -307,7 +317,9 @@ function summaryMarkdown (env, config, rows, sessionId) {
   lines.push('')
   lines.push('- Load generator and server share one machine; autocannon is single-threaded and competes for CPU. Absolute numbers describe this machine only.')
   lines.push('- Logs went to a file through the server process\'s stdout. Both the default sink and pino write synchronously in that setup. A pipe, a terminal or a remote collector behave differently.')
-  lines.push('- The handler does almost nothing, so middleware cost is a large share of each request. In a real application the relative overhead is smaller; the absolute cost per request is the more transferable number.')
+  lines.push(config.handler === 'tiny'
+    ? '- The handler does almost nothing, so middleware cost is a large share of each request. In a real application the relative overhead is smaller; the absolute cost per request is the more transferable number.'
+    : '- The handler does a fixed amount of synchronous CPU work (about 0.27 ms) and returns about 3 KB of JSON. Real handlers also wait on I/O, which costs no CPU but holds connections; this handler does not model that.')
   lines.push('- The pino-http variant is configured to be comparable, not identical: it has no Server-Timing and no route templates, and it uses its own serializers.')
   lines.push('- Background activity on the machine was not controlled. The min–max ranges show run-to-run spread.')
   return lines.join('\n') + '\n'
@@ -322,7 +334,7 @@ function manifestMarkdown (env, config, runs, sessionId) {
   lines.push('```text')
   lines.push(`runId: ${sessionId}`)
   lines.push(`scenarioId: ${config.variants.join(', ')}`)
-  lines.push('experimentType: baseline (first measurement of 0.1.0-dev.0)')
+  lines.push('experimentType: overhead measurement')
   lines.push(`date: ${env.date}`)
   lines.push(`sourceCommit: ${env.sourceCommit}${env.workingTreeDirty ? ' (dirty)' : ''}`)
   lines.push(`nodeVersion: ${env.nodeVersion}`)
@@ -332,7 +344,7 @@ function manifestMarkdown (env, config, runs, sessionId) {
   lines.push(`hardware: ${env.cpuModel}, ${env.logicalCpus} logical CPUs, ${env.totalMemGb} GB RAM`)
   lines.push(`powerState: ${env.powerPlan ?? 'not recorded'}`)
   lines.push(`loadTool/version: autocannon ${env.autocannonVersion}`)
-  lines.push(`loadConfig: ${config.connections} connections, ${config.durationSec} s measured, ${config.warmupSec} s warm-up, pipelining ${config.pipelining}, GET ${PATH}`)
+  lines.push(`loadConfig: ${config.connections} connections, ${config.durationSec} s measured, ${config.warmupSec} s warm-up, pipelining ${config.pipelining}, GET ${PATH}, handler ${config.handler}`)
   lines.push('sinkDestination: server stdout redirected to a local temp file (deleted after counting)')
   lines.push('clientPlatform: node-script (autocannon in the parent process)')
   lines.push('networkCondition: loopback 127.0.0.1')

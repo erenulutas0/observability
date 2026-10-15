@@ -17,6 +17,26 @@ It is a small building block that feeds the logging you already have. It is not 
 - Node.js 22 or later
 - Express 4.17 or later, or Express 5. The full test suite runs against both (4.22.3 and 5.3.0).
 - One runtime dependency: [`on-headers`](https://www.npmjs.com/package/on-headers) 1.1, from the Express maintainers.
+- TypeScript is optional. The package ships hand-written type definitions; install `@types/express` 4.17 or 5.x as well.
+
+### TypeScript
+
+```ts
+import express = require('express')
+import observe = require('express-observe')
+
+const app = express()
+app.use(observe({ log: { sink: (record: observe.AccessLogRecord) => console.log(record.route, record.durationMs) } }))
+
+app.get('/users/:id', (req, res) => {
+  res.serverTiming?.start('db')
+  res.json({ requestId: req.id })
+})
+```
+
+- `req.id` and `res.serverTiming` are typed as optional, because the compiler cannot know whether `observe()` ran before a given handler. Use `?.` or check them once.
+- `observe.AccessLogRecord`, `observe.Options` and the other exported types describe the record and the options below. Fields added with `log.extend` are typed as `unknown`.
+- The definitions are checked against the packed package with TypeScript 5.9 and 7.0, on Express 4 and 5. They are written by hand, so report any mismatch with the runtime as a bug.
 
 ## Quick start
 
@@ -71,7 +91,7 @@ Note what is missing: no `42`, no `token=abc`, no headers, no IP.
 | `headerDurationMs` | number \| null | Middleware entry until response headers were written. `null` if they never were |
 | `durationMs` | number | Middleware entry until the response finished or the connection ended |
 | `termination` | `"finished"` \| `"interrupted"` | `finished`: the last byte was handed to the operating system. `interrupted`: the connection ended first |
-| `eventLoopDelayMs` | number | **Only with `eventLoop.enabled`**, placed after `durationMs`. The largest event-loop delay the process saw from shortly before this request until its end. See [Event-loop delay](#event-loop-delay-opt-in) |
+| `eventLoopDelayMs` | number \| null | **Only with `eventLoop.enabled`**, placed after `durationMs`. The largest event-loop delay the process saw from shortly before this request until its end; `null` while the sampler has no measurement yet. See [Event-loop delay](#event-loop-delay-opt-in) |
 
 Durations use a monotonic clock and have three decimals.
 
@@ -189,6 +209,7 @@ app.use(observe({ log: { sink: (record) => logger.info(record) } }))
 
 Your logger adds its own fields on top of the record. Pino, for example, adds `level`, `time`, `pid` and `hostname` by default; configure its `base` option if you do not want the host name in every line.
 
+- Each record is handed to the sink **once**. That is a delivery attempt, not delivery: a sink returning (or its promise resolving) does not mean a remote log platform has stored the record.
 - A sink that throws, or returns a promise that rejects, never affects the response or later records. The failure goes to `onSinkError(err, record)`. Without one, a single stderr line naming the error class is written at most every 10 seconds; error messages are never printed.
 - The sink runs after the response has ended, so a slow **asynchronous** sink does not delay responses. A sink that blocks synchronously still slows the whole process.
 - There is no buffering, no retry and no flush on exit. Records can be lost when the process exits or the sink fails.
@@ -201,8 +222,10 @@ When synchronous work blocks Node's event loop, requests that arrive meanwhile w
 app.use(observe({ eventLoop: { enabled: true } }))
 ```
 
-- One `unref()`ed timer per middleware instance measures how late each tick fires. Each record gets `eventLoopDelayMs`: the largest delay seen from one interval before the request entered the middleware until it ended, including a tick that is overdue at that moment.
-- It says the **process** was blocked for about that long around this request. It does not say this request waited that long, and it cannot say which code blocked.
+- One `unref()`ed timer per middleware instance measures how late each tick fires. Each record gets `eventLoopDelayMs`: the **maximum** delay seen from one interval before the request entered the middleware until it ended, including a tick that is overdue at that moment. It does not use `perf_hooks.monitorEventLoopDelay`.
+- Samples live in a ring buffer of the last 256 ticks (about 5 s at the default 20 ms). Nothing is reset when a request ends, so concurrent requests read the same samples without affecting each other, and several of them can report the same block.
+- The value is `null`, not `0`, while the sampler has not completed a tick yet (typically the first request after start-up), because a block before the sampler started cannot be seen. Once it has a baseline, `0` means no delay above timer granularity was seen.
+- It says the **process** was blocked for about that long around this request. In other words: it is the event-loop delay observed in this time window; it does not prove how long this request itself caused or suffered, and it cannot say which code blocked. It is never added to `durationMs` or subtracted from anything.
 - Timer granularity limits it: on Windows timers are coarse (about 15 ms), so values under about 20 ms carry no information there.
 - `analyze` shows a `LOOP MAX MS` column and a note when records carry the field.
 - Cost: a timer callback every `resolutionMs` and a scan of a few samples per request. A first measurement could not separate it from noise (median +7 µs per request, higher in 7 of 12 rounds, on a noisy machine).
@@ -251,6 +274,14 @@ What the report deliberately does:
 - Latency percentiles use **finished** requests only. Interrupted requests are counted separately.
 - p95 needs at least 20 values and p99 at least 100 in a group; with fewer they are shown as `-` instead of a misleading number.
 - It ends with notes derived from the data: unknown routes, interruptions and what they do not prove, mixed services or releases, withheld percentiles.
+- It describes **the records in its input only**. If a pipeline sampled, filtered or lost records before they reached the file, counts and rates describe what is left, not all traffic. For example, keeping every error but one success in ten turns a 10% error rate into 53%. The report says so; it cannot correct for it.
+- It reports its method (nearest-rank percentiles, minimum samples, finished requests only) in the header and in `--json` under `method`.
+- Data-quality checks: lines are skipped and counted by reason, and some cases get their own note.
+  - A truncated last line, from a log cut while it was being written.
+  - Records with another `schemaVersion`.
+  - Records with malformed fields.
+  - Input that looks like UTF-16, for example from Windows PowerShell 5 redirection. Convert such files to UTF-8.
+  - A UTF-8 byte order mark is accepted.
 - Text from the log is printed as plain ASCII, so a crafted log line cannot inject terminal escape codes.
 
 Exit codes: `0` report printed, `1` unreadable input or no valid records, `2` usage error. The full report shape is in `--json`; `reportVersion` changes on incompatible updates.
@@ -276,7 +307,7 @@ PASS  not-found-path     answered 404 with X-Request-Id
 PASS  log-record-count   5 request(s), one record each
 WARN  route-label        see details
                          - GET /api/items/7: answered 200 but the route is null. If a router serves it, add the router's mount template to route.mounts; if a middleware answered, set res.locals.observeRoute.
-PASS  privacy-markers    markers not found in the log
+PASS  privacy-markers    this run's markers not found in the log (not a general privacy check)
 
 Result: 1 failure(s), 1 warning(s).
 ```
@@ -290,7 +321,7 @@ The output above is illustrative. What it checks:
 | `server-timing` | a missing or malformed header |
 | `log-record-count` (`--log`) | records missing, or written twice by two sinks |
 | `route-label` (`--log`) | routers missing from `route.mounts`, raw URLs used as labels |
-| `privacy-markers` (`--log`) | query strings or headers reaching the log through `extend` or another logger |
+| `privacy-markers` (`--log`) | this run's own random markers (sent in a query parameter and a header) reaching the log, for example through `extend` or another logger. A pass means only that these markers were not found; it is not proof that the log contains no personal data |
 
 Safety limits, enforced before any request is sent:
 
@@ -298,6 +329,8 @@ Safety limits, enforced before any request is sent:
 - Only `GET`, with no body, cookies or credentials, and redirects are not followed. Pass only paths that are safe to request repeatedly.
 - At most 10 paths and 22 requests, one at a time, each with a hard time limit (`--timeout`, default 5 s). Response bodies are read up to 64 KiB.
 - Requests carry `User-Agent: express-observe-doctor/<version>` and random marker values in a query parameter and a header. The log file is only read; its lines are never printed.
+
+What each status means: `PASS` the check ran and found nothing; `FAIL` and `WARN` it found something, listed under the check; `INFO` a fact, not a judgement; `SKIP` the check was **not performed or was inconclusive** (no `--log`, no response to inspect, no probe that could be matched to a record). Doctor only sees HTTP responses and, with `--log`, the lines of that one file; it cannot see other sinks, other files or other processes.
 
 Other options: `--header` for a custom request ID header, `--wait` before reading a buffered log, `--json`. Exit codes: `0` no failures (warnings allowed), `1` at least one failure, `2` usage error or refused target.
 
@@ -309,6 +342,46 @@ The middleware never writes request or response bodies, URLs or query strings, h
 
 What you add yourself through `extend`, `res.locals.observeRoute`, `route.resolver`, `service`, `release` or `Server-Timing` descriptions is your responsibility.
 
+## Local diagnostics
+
+The access log cannot show requests that have not ended yet, or records that never reached your sink. `getDiagnostics()` returns the package's own counters, so you can check that from inside the process:
+
+```js
+const { getDiagnostics } = require('express-observe')
+
+setInterval(() => logger.info({ expressObserve: getDiagnostics() }), 60_000).unref()
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "pid": 4242,
+  "threadId": 0,
+  "since": "2026-10-15T08:00:00.000Z",
+  "requests": { "started": 120, "finished": 117, "interrupted": 1, "inFlight": 2 },
+  "records": { "emitted": 118, "dropped": 0, "sinkErrors": 3, "sinkPending": 0 },
+  "warnings": 3
+}
+```
+
+| Counter | Meaning |
+|---|---|
+| `started` | Requests the middleware began observing. A second `observe()` on the same request does not count it again. |
+| `finished`, `interrupted` | Requests that ended, by the same rule as the record's `termination`. |
+| `inFlight` | `started − finished − interrupted` right now: requests that have no record yet. |
+| `emitted` | Records handed to your sink. A delivery attempt, not proof of delivery. |
+| `dropped` | Records that could not be built, so your sink was never called. Each one also raises a warning. |
+| `sinkErrors` | Sink calls that threw or returned a promise that rejected. |
+| `sinkPending` | Promises returned by your sink that have not settled yet. A number that keeps growing means your sink is stuck. |
+| `warnings` | The package's internal warnings, including those whose stderr line was rate-limited. |
+
+With logging enabled, once nothing is in flight: `finished + interrupted = emitted + dropped`.
+
+- **Scope: this process, or this worker thread.** Every `observe()` instance in the process adds to the same counters. Each cluster worker, worker thread and process has its own, so do not present one as a total. `pid`, `threadId` and `since` say where a snapshot came from. A second copy of the package installed elsewhere in `node_modules` counts separately.
+- **Counters only.** No reset: compare two snapshots. There are no per-route or per-status counters, no buffer, no timer, no HTTP endpoint and no process handlers. Publishing the snapshot is up to you.
+- **Not a recovery mechanism.** Counters die with the process. Requests that never reached `observe()` are not counted. With `log.enabled: false` the request counters still work, and the record counters stay at zero.
+- `diagnostic-lab --check` compares these counters with the records it received independently and fails if they disagree.
+
 ## Errors and interrupted connections
 
 - Errors passed to `next(err)` reach your error middleware unchanged. The record shows the status your handler sent.
@@ -318,27 +391,31 @@ What you add yourself through `extend`, `res.locals.observeRoute`, `route.resolv
 
 ## Known limitations
 
-- **Express 4 does not catch rejected promises from `async` handlers** (Express 5 does, and the request is then logged as a finished 500). Such a request hangs until the client gives up; only then is a record written, as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 fixes this.
+- **Express 4 does not catch rejected promises from `async` handlers.** What happens next depends on Node, not on this package. With Node 22's default (`--unhandled-rejections=throw`) the rejection is unhandled and **the process exits**: no record is written, and every request open in that process is cut off. If the application or its runtime keeps the process alive (for example `--unhandled-rejections=warn` or its own `unhandledRejection` handler), the request stays open until the client gives up and is then logged as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 forwards a rejected promise *returned by a handler or middleware* to the error handler, and the request is logged as a finished 500; promises the handler does not return (timers, background work) are not covered. express-observe installs no global error handlers and is not an error-handling solution. Each case is tested in a separate Node process (`test/async-rejection-process.test.js`).
 - **Express's default error handler prints the stack to stderr** (4 and 5) whenever `NODE_ENV` is not `test`. That output comes from Express, not from this package. Install your own error middleware if stacks must stay out of stderr.
-- **No delivery guarantee.** See Sinks.
+- **No delivery guarantee.** See Sinks. `getDiagnostics()` shows sink failures and unsettled sink calls, but cannot show what happened after your sink returned.
 - **`durationMs` starts when the middleware runs.** Connection setup, TLS and request-header parsing happen earlier and are not included.
 - **Server-side only.** It cannot measure network latency, client rendering or device performance. It gives the client the IDs and timings it needs to correlate those itself.
 - **Express 5 route syntax** (`/*splat`, `{.:ext}`) is logged as written. Express 4 inline regex parameters such as `:id(\d+)` are logged as written too. `route.mounts` templates support literal and `:param` segments only, so a router mounted on a wildcard path gets `route: null` unless you label it.
 
 ## Performance
 
-The middleware costs CPU time on every request. One measurement on a Windows 11 desktop (Intel i5-12500, Node 22.23.2, Express 4.22.3), with a route that returns a tiny JSON body and logs written to a file, gave these medians of three 15-second runs:
+The middleware costs CPU time on every request. Measured on 2026-10-15 on a Windows 11 desktop: Intel i5-12500, Node 22.23.2, Express 4.22.3. Logs went to a file. Each value is the median of five 30-second runs. Two handlers were measured:
+- a **tiny** one, returning a small JSON body at once: the worst case;
+- a **work** one, doing about 0.27 ms of CPU work first and returning 3 KB.
 
-| Configuration | Server CPU per request | Throughput vs no middleware |
+| Configuration | Extra server CPU per request, tiny handler | Extra server CPU per request, work handler |
 |---|---|---|
-| No middleware | 128 µs | baseline |
-| Request ID and Server-Timing only | 194 µs | −36% |
-| Everything on, default stdout sink | 287 µs | −55% |
-| pino-http with a request ID, for comparison | 222 µs | −46% |
+| No middleware | 0 (baseline: 106 µs) | 0 (baseline: 506 µs) |
+| Request ID and Server-Timing only | +33 µs (+31%) | +49 µs (+10%) |
+| Everything on, default stdout sink | +78 µs (+74%) | +81 µs (+16%) |
+| pino-http with a request ID, for comparison | +53 µs (+50%) | +115 µs (+23%) |
 
-These numbers predate one optimisation: replacing `on-finished` with two plain listeners later cut the full-log configuration's server CPU by a median 16% in a paired A/B run on the same machine ([details](../../bench/results/micro-2026-10-14/README.md)). The table has not been re-measured as a whole since.
+- **The absolute cost is what carries over.** With everything on, the middleware added about 80 µs per request with both handlers. How large that is relative to a request depends on how much your handler already costs.
+- **pino-http is not a like-for-like comparison.** It adds no `Server-Timing` and no route templates. With the tiny handler it cost less than this package; with the work handler, more. The work-handler runs were noisy: the baseline's throughput ranged from 1,294 to 2,299 requests per second. So the ordering between the two is not settled by these runs.
+- **Latency on a saturated machine.** p99 rose more than CPU, because client and server shared one machine at full load. Treat those percentiles as a stress signal, not as what users would see.
 
-Read this as an upper bound for relative cost. The handler does almost nothing, so the middleware is a large share of each request; with handlers that do real work, the same tens of microseconds are a much smaller share. Background load made run-to-run spread wide. Method, ranges, latency percentiles and caveats are in [bench/](../../bench/README.md); run `npm run bench` to measure on your own machine.
+Raw results, ranges and caveats are in [the tiny-handler run](../../bench/results/2026-10-15-072654/summary.md) and [the work-handler run](../../bench/results/2026-10-15-075512/summary.md). Method is in [bench/](../../bench/README.md); run `npm run bench` (add `--handler=work`) to measure on your own machine. Numbers from one machine and one session describe that machine only.
 
 ## Not in scope
 

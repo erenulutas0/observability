@@ -43,15 +43,22 @@ function createEventLoopSampler ({ resolutionMs }) {
 
   /**
    * Largest lateness observed at or after `fromMs` (monotonic milliseconds), including the lateness of the tick
-   * that is overdue right now. 0 if there is no sample and no tick is overdue.
+   * that is overdue right now.
+   *
+   * Returns null when there is nothing to base a value on: the sampler is not running, or it has not completed a
+   * single tick yet and no tick is overdue (typically the first request after start-up). "No data" must not read
+   * as "no delay". Once the sampler has a baseline, 0 means no delay above the timer's granularity was seen.
    *
    * The overdue tick matters: after a block, the requests that waited are often handled before the sampler's
    * next tick runs, so the sample that would show the block does not exist yet when their record is built.
    * `now - expected` is how long the event loop has been busy since that tick was due.
    * @param {number} fromMs
+   * @returns {number | null}
    */
   function maxSince (fromMs) {
-    let max = timer === null ? 0 : nowMs() - expected
+    if (timer === null) return null
+    let max = nowMs() - expected
+    if (count === 0 && max <= 0) return null
     if (max < 0) max = 0
     for (let i = 1; i <= count; i++) {
       const index = (head - i + CAPACITY) % CAPACITY

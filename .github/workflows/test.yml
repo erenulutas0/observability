@@ -36,3 +36,5 @@ jobs:
         run: npm test
       - name: diagnostic-lab scenarios
         run: npm run lab:check
+      - name: Packed-tarball consumer check (CommonJS, TypeScript types, CLI)
+        run: npm run consumer:check --workspace packages/express-observe

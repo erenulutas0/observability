@@ -76,6 +76,7 @@ function renderText (report, sources) {
   out.push(`window:   ${report.window.first ?? '-'} .. ${report.window.last ?? '-'}${report.window.since || report.window.until ? `  (filter ${report.window.since ?? '-'} .. ${report.window.until ?? '-'})` : ''}`)
   out.push(`services: ${list(report.services)}`)
   out.push(`releases: ${list(report.releases)}`)
+  out.push('scope:    records in this input only; sampling or loss before it is unknown')
   out.push('')
 
   // The event-loop column appears only when the records carry eventLoopDelayMs (ADR-0009).
@@ -86,7 +87,7 @@ function renderText (report, sources) {
   rows.push(groupRow({ ...report.totals, key: 'all requests' }, withLoop))
   out.push(table(headers, rows, headers.map((_, i) => i > 0)))
   out.push('')
-  out.push('Latency columns use finished requests only. HEADER P95 is time until response headers were sent.')
+  out.push(`Latency columns use finished requests only, nearest-rank percentiles; p95 needs ${report.method.minSamples.p95} and p99 needs ${report.method.minSamples.p99} values. HEADER P95 is time until response headers were sent.`)
 
   if (report.slowest.length > 0) {
     out.push('')

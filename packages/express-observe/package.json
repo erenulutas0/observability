@@ -13,12 +13,14 @@
     "url": "https://github.com/erenulutas0/observability/issues"
   },
   "main": "src/index.js",
+  "types": "index.d.ts",
   "bin": {
     "express-observe": "bin/express-observe.js"
   },
   "files": [
     "src",
     "bin",
+    "index.d.ts",
     "README.md",
     "LICENSE"
   ],
@@ -38,10 +40,17 @@
   "scripts": {
     "test": "jest && jest -c jest.express5.config.js",
     "test:express5": "jest -c jest.express5.config.js",
-    "test:express4": "jest"
+    "test:express4": "jest",
+    "consumer:check": "node tools/consumer/run.js"
   },
   "peerDependencies": {
-    "express": "^4.17.0 || ^5.0.0"
+    "express": "^4.17.0 || ^5.0.0",
+    "@types/express": "^4.17.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/express": {
+      "optional": true
+    }
   },
   "jest": {
     "testEnvironment": "node"

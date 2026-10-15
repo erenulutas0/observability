@@ -126,6 +126,25 @@ Status markers: `[ ]` pending · `[~]` in progress · `[x]` done · `[-]` droppe
 - [x] Green on ubuntu-latest and windows-latest (first Linux run of the project); actions bumped to v7 after a Node 20 deprecation warning — 2026-10-14
 - [ ] Owner review; merge feat/ci into main
 
+## External review R1–R5 (branch feat/review-hardening)
+
+Review of the project summary from a separate session; evidence table in docs/reviews (kept local). Decisions: ship doc and test fixes first; R1 null change included; mobile demo keeps trust on with an opt-out; types before counters.
+
+- [x] R2: README and ARCHITECTURE corrected: with Node 22 defaults a rejected Express 4 async handler crashes the process; with warn mode the request stays open; Express 5 covers only returned promises. Three child-process tests observe each case — 2026-10-14
+- [x] R1: eventLoopDelayMs is null (not 0) before the sampler has a measurement; README states method, window, maximum, 256-sample buffer, no reset, and the review's wording; ADR-0009 addendum; test catches removal of the rule — 2026-10-14
+- [x] R4: doctor's privacy-markers summary and README narrowed to "this run's markers"; status meanings (SKIP = not performed or inconclusive) and doctor's visibility limits documented — 2026-10-14
+- [x] R5: "handed to the sink once" and "a sink returning is not remote acceptance" in README and ARCHITECTURE — 2026-10-14
+- [x] R3: example server keeps trustIncoming on, with TRUST_CLIENT_IDS=0 for the package default; README says why the example differs — 2026-10-14
+- [x] Mutation checks made reproducible: tools/mutation (runner + 4 specs, 31 mutations). Earlier counts in this file came from one-off scripts that were not kept — 2026-10-14
+- [x] P3 TypeScript types: hand-written index.d.ts shipped in the package, optional @types/express peer, req.id and res.serverTiming typed as optional — 2026-10-15
+- [x] P3 packed-tarball consumer check (tools/consumer, npm run consumer:check, in CI): CommonJS runtime, strict tsc with must-fail cases, CLI from node_modules; Express 4 + TS 5.9 and Express 5 + TS 7.0 pass. Loosening one option type made the check fail, as intended — 2026-10-15
+- [x] P1 local diagnostics counters: getDiagnostics() (ADR-0010), process/worker scope with pid, threadId and since; requests started/finished/interrupted/inFlight, records emitted/dropped/sinkErrors/sinkPending, warnings. No reset, buffers, timers, endpoint or process handlers — 2026-10-15
+- [x] P1 acceptance: 16 tests (Express 4 and 5) incl. real-socket disconnect, worker-thread scope, no handlers or timers; diagnostic-lab --check compares the counters with the records it received; 11 mutations in tools/mutation/specs/diagnostics.js all caught — 2026-10-15
+- [x] P2 analyze: coverage note and `scope:` line (input only, not all traffic), `method` in the report, notes for truncated last line, UTF-16 input, unsupported schemaVersion and malformed records; review's sampling counter-example as a test; 6 mutations caught (ADR-0004 addendum) — 2026-10-15
+- [x] P4 benchmark, same commit, all variants, Windows 11 desktop: tiny handler (2026-10-15-072654) and a new `--handler=work` with about 0.27 ms of CPU work (2026-10-15-075512). Full logging adds about 80 µs server CPU per request with both handlers (+74% tiny, +16% work). README table replaced. The work-handler runs were noisy (baseline throughput range 1,294–2,299 req/s). A first work handler built on a 2 ms setTimeout measured Windows timer granularity (15.6 ms) instead; that run is kept, marked invalid — 2026-10-15
+- [ ] P4 Linux numbers (not run: needs a separate machine; the owner chose this desktop for now)
+- [ ] P4 controlled pilot on the owner's personal project with real traffic, following docs/pilot-runbook.md. Company use waits for the owner's approval meeting
+
 ## Repository
 
 - [x] MIT LICENSE added with the GitHub handle erenulutas0 as copyright holder (change if a full name is preferred) — 2026-10-14
