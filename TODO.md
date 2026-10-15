@@ -141,7 +141,9 @@ Review of the project summary from a separate session; evidence table in docs/re
 - [x] P1 local diagnostics counters: getDiagnostics() (ADR-0010), process/worker scope with pid, threadId and since; requests started/finished/interrupted/inFlight, records emitted/dropped/sinkErrors/sinkPending, warnings. No reset, buffers, timers, endpoint or process handlers — 2026-10-15
 - [x] P1 acceptance: 16 tests (Express 4 and 5) incl. real-socket disconnect, worker-thread scope, no handlers or timers; diagnostic-lab --check compares the counters with the records it received; 11 mutations in tools/mutation/specs/diagnostics.js all caught — 2026-10-15
 - [x] P2 analyze: coverage note and `scope:` line (input only, not all traffic), `method` in the report, notes for truncated last line, UTF-16 input, unsupported schemaVersion and malformed records; review's sampling counter-example as a test; 6 mutations caught (ADR-0004 addendum) — 2026-10-15
-- [ ] P4 same-commit benchmark on a quiet machine; controlled pilot
+- [x] P4 benchmark, same commit, all variants, Windows 11 desktop: tiny handler (2026-10-15-072654) and a new `--handler=work` with about 0.27 ms of CPU work (2026-10-15-075512). Full logging adds about 80 µs server CPU per request with both handlers (+74% tiny, +16% work). README table replaced. The work-handler runs were noisy (baseline throughput range 1,294–2,299 req/s). A first work handler built on a 2 ms setTimeout measured Windows timer granularity (15.6 ms) instead; that run is kept, marked invalid — 2026-10-15
+- [ ] P4 Linux numbers (not run: needs a separate machine; the owner chose this desktop for now)
+- [ ] P4 controlled pilot on the owner's personal project with real traffic, following docs/pilot-runbook.md. Company use waits for the owner's approval meeting
 
 ## Repository
 

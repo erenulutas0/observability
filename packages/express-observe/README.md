@@ -400,18 +400,22 @@ With logging enabled, once nothing is in flight: `finished + interrupted = emitt
 
 ## Performance
 
-The middleware costs CPU time on every request. One measurement on a Windows 11 desktop (Intel i5-12500, Node 22.23.2, Express 4.22.3), with a route that returns a tiny JSON body and logs written to a file, gave these medians of three 15-second runs:
+The middleware costs CPU time on every request. Measured on 2026-10-15 on a Windows 11 desktop: Intel i5-12500, Node 22.23.2, Express 4.22.3. Logs went to a file. Each value is the median of five 30-second runs. Two handlers were measured:
+- a **tiny** one, returning a small JSON body at once: the worst case;
+- a **work** one, doing about 0.27 ms of CPU work first and returning 3 KB.
 
-| Configuration | Server CPU per request | Throughput vs no middleware |
+| Configuration | Extra server CPU per request, tiny handler | Extra server CPU per request, work handler |
 |---|---|---|
-| No middleware | 128 µs | baseline |
-| Request ID and Server-Timing only | 194 µs | −36% |
-| Everything on, default stdout sink | 287 µs | −55% |
-| pino-http with a request ID, for comparison | 222 µs | −46% |
+| No middleware | 0 (baseline: 106 µs) | 0 (baseline: 506 µs) |
+| Request ID and Server-Timing only | +33 µs (+31%) | +49 µs (+10%) |
+| Everything on, default stdout sink | +78 µs (+74%) | +81 µs (+16%) |
+| pino-http with a request ID, for comparison | +53 µs (+50%) | +115 µs (+23%) |
 
-These numbers predate one optimisation: replacing `on-finished` with two plain listeners later cut the full-log configuration's server CPU by a median 16% in a paired A/B run on the same machine ([details](../../bench/results/micro-2026-10-14/README.md)). The table has not been re-measured as a whole since.
+- **The absolute cost is what carries over.** With everything on, the middleware added about 80 µs per request with both handlers. How large that is relative to a request depends on how much your handler already costs.
+- **pino-http is not a like-for-like comparison.** It adds no `Server-Timing` and no route templates. With the tiny handler it cost less than this package; with the work handler, more. The work-handler runs were noisy: the baseline's throughput ranged from 1,294 to 2,299 requests per second. So the ordering between the two is not settled by these runs.
+- **Latency on a saturated machine.** p99 rose more than CPU, because client and server shared one machine at full load. Treat those percentiles as a stress signal, not as what users would see.
 
-Read this as an upper bound for relative cost. The handler does almost nothing, so the middleware is a large share of each request; with handlers that do real work, the same tens of microseconds are a much smaller share. Background load made run-to-run spread wide. Method, ranges, latency percentiles and caveats are in [bench/](../../bench/README.md); run `npm run bench` to measure on your own machine.
+Raw results, ranges and caveats are in [the tiny-handler run](../../bench/results/2026-10-15-072654/summary.md) and [the work-handler run](../../bench/results/2026-10-15-075512/summary.md). Method is in [bench/](../../bench/README.md); run `npm run bench` (add `--handler=work`) to measure on your own machine. Numbers from one machine and one session describe that machine only.
 
 ## Not in scope
 
