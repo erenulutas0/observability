@@ -1,5 +1,7 @@
 # express-observe workspace
 
+[![test](https://github.com/erenulutas0/observability/actions/workflows/test.yml/badge.svg)](https://github.com/erenulutas0/observability/actions/workflows/test.yml)
+
 Lightweight, privacy-first observability middleware for Express 4 and 5: request IDs, `Server-Timing` and one structured access-log record per request.
 
 - Package and usage: [packages/express-observe/README.md](packages/express-observe/README.md)

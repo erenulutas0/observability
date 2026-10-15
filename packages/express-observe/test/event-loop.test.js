@@ -8,6 +8,10 @@ const { listen, sleep } = require('./helpers/http')
 const { collectingSink, RECORD_KEYS } = require('./helpers/records')
 
 const BLOCK_MS = 120
+// For the two tests where a request from another thread must arrive during the block, the block is long and
+// the request is aimed at its middle, so slow CI runners (shared cores, parallel Jest workers) still land inside it.
+const LATE_BLOCK_MS = 400
+const LATE_REQUEST_AT_MS = 150
 
 function burn (ms) {
   const end = process.hrtime.bigint() + BigInt(ms * 1e6)
@@ -63,19 +67,29 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
   })
 
   test('shows a block that happened while the request was in flight', async () => {
+    // The server itself enforces the order (CI runners are too slow for sleeps to do it): /waits answers only
+    // after /blocks has finished burning, so the block always falls inside /waits' lifetime.
+    let arrived = null
+    let release = null
+    const waitsArrived = new Promise((resolve) => { arrived = resolve })
     const { app, waitFor } = appWith({ eventLoop: { enabled: true } }, (a) => {
-      a.get('/waits', (req, res) => setTimeout(() => res.send('done'), 250))
+      a.get('/waits', (req, res) => {
+        release = () => res.send('done')
+        arrived()
+      })
       a.get('/blocks', (req, res) => {
         burn(BLOCK_MS)
         res.send('blocked')
+        release()
       })
     })
     const { port, close } = await listen(app)
     try {
       await request(`http://127.0.0.1:${port}`).get('/fast') // starts the sampler
-      await sleep(60)
-      const waiting = request(`http://127.0.0.1:${port}`).get('/waits')
-      await sleep(40)
+      // A supertest request is only sent when .then()/.end() is called, so call .then() now: the earlier version
+      // of this test awaited it after the block and therefore sent it after the block, passing by luck locally.
+      const waiting = request(`http://127.0.0.1:${port}`).get('/waits').then((res) => res)
+      await waitsArrived
       await request(`http://127.0.0.1:${port}`).get('/blocks')
       const res = await waiting
       const records = await waitFor(3)
@@ -90,7 +104,7 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
     const { app, waitFor } = appWith({ eventLoop: { enabled: true } }, (a) => {
       // Answers at once, then blocks the event loop shortly afterwards; no request is in flight for it.
       a.get('/block-later', (req, res) => {
-        setTimeout(() => burn(BLOCK_MS), 20)
+        setTimeout(() => burn(LATE_BLOCK_MS), 20)
         res.send('ok')
       })
     })
@@ -98,14 +112,14 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
     try {
       await request(`http://127.0.0.1:${port}`).get('/fast') // starts the sampler
       await sleep(60)
-      const client = await workerGet(port, '/fast', 60) // arrives while the loop is blocked
+      const client = await workerGet(port, '/fast', LATE_REQUEST_AT_MS) // arrives while the loop is blocked
       await request(`http://127.0.0.1:${port}`).get('/block-later')
       client.go()
       const { requestId } = await client.done
       const records = await waitFor(3)
       const record = records.find((r) => r.requestId === requestId)
-      expect(record.durationMs).toBeLessThan(BLOCK_MS * 0.25) // the wait is not in durationMs ...
-      expect(record.eventLoopDelayMs).toBeGreaterThanOrEqual(BLOCK_MS * 0.5) // ... but the block is visible
+      expect(record.durationMs).toBeLessThan(LATE_BLOCK_MS * 0.25) // the wait is not in durationMs ...
+      expect(record.eventLoopDelayMs).toBeGreaterThanOrEqual(LATE_BLOCK_MS * 0.5) // ... but the block is visible
     } finally {
       await close()
     }
@@ -116,7 +130,7 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
       // Blocking in the check phase lets the sampler's tick run (timers phase) before the waiting request is
       // handled (poll phase), so only the look-back window finds the sample.
       a.get('/block-immediate', (req, res) => {
-        setTimeout(() => setImmediate(() => burn(BLOCK_MS)), 20)
+        setTimeout(() => setImmediate(() => burn(LATE_BLOCK_MS)), 20)
         res.send('ok')
       })
     })
@@ -124,14 +138,14 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
     try {
       await request(`http://127.0.0.1:${port}`).get('/fast')
       await sleep(60)
-      const client = await workerGet(port, '/fast', 60)
+      const client = await workerGet(port, '/fast', LATE_REQUEST_AT_MS)
       await request(`http://127.0.0.1:${port}`).get('/block-immediate')
       client.go()
       const { requestId } = await client.done
       const records = await waitFor(3)
       const record = records.find((r) => r.requestId === requestId)
-      expect(record.durationMs).toBeLessThan(BLOCK_MS * 0.25)
-      expect(record.eventLoopDelayMs).toBeGreaterThanOrEqual(BLOCK_MS * 0.5)
+      expect(record.durationMs).toBeLessThan(LATE_BLOCK_MS * 0.25)
+      expect(record.eventLoopDelayMs).toBeGreaterThanOrEqual(LATE_BLOCK_MS * 0.5)
     } finally {
       await close()
     }
