@@ -49,3 +49,9 @@ export const record: observe.AccessLogRecord = {
   durationMs: null,
   termination: 'finished'
 }
+
+// @ts-expect-error getDiagnostics takes no arguments (there is no per-route or filtered view)
+observe.getDiagnostics('/users')
+
+// @ts-expect-error the snapshot has no reset
+observe.getDiagnostics().reset()

@@ -1,7 +1,7 @@
 // Correct usage must compile under strict settings.
 import express = require('express')
 import observe = require('express-observe')
-import { observe as named } from 'express-observe'
+import { observe as named, getDiagnostics } from 'express-observe'
 
 const records: observe.AccessLogRecord[] = []
 
@@ -52,3 +52,6 @@ export function summarise (record: observe.AccessLogRecord): string {
 
 export const timing: observe.ServerTiming = { start () {}, end () {}, add () {} }
 export const options: observe.Options = { requestId: { trustIncoming: true } }
+
+const diagnostics: observe.Diagnostics = observe.getDiagnostics()
+export const open: number = diagnostics.requests.inFlight + getDiagnostics().records.sinkPending

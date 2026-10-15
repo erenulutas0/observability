@@ -12,6 +12,7 @@ const net = require('node:net')
 const { createApp, HOST, WAIT_BEFORE_HEADERS_MS, SLOW_BODY, L7_RESPONSE_AFTER_MS, SLOW_SINK_MS, CPU_WORK_MS, LARGE_ITEM_COUNT, burnCpu } = require('./app')
 
 const fs = require('node:fs')
+const { getDiagnostics } = require('express-observe')
 
 const CHECK = process.argv.includes('--check')
 const LOG_ARG = process.argv.find((a) => a.startsWith('--log='))
@@ -484,6 +485,28 @@ async function main () {
   if (logStream) await new Promise((resolve) => logStream.end(resolve))
 
   process.stdout.write(`\n${records.length} records delivered, ${sinkFailures.length} sink failures reported, ${duplicates} duplicate records.\n`)
+
+  // The package's own counters (ADR-0010) must agree with what this run observed independently.
+  const d = (await waitFor(() => {
+    const snapshot = getDiagnostics()
+    return snapshot.requests.inFlight === 0 && snapshot.records.sinkPending === 0 ? snapshot : undefined
+  })) ?? getDiagnostics()
+  const { started, finished, interrupted, inFlight } = d.requests
+  const { emitted, dropped, sinkErrors, sinkPending } = d.records
+  process.stdout.write(`getDiagnostics(): ${started} started, ${finished} finished, ${interrupted} interrupted, ${inFlight} in flight; ${emitted} emitted, ${dropped} dropped, ${sinkErrors} sink errors, ${sinkPending} pending.\n`)
+  const counterFailures = [
+    inFlight !== 0 && `${inFlight} requests still in flight`,
+    sinkPending !== 0 && `${sinkPending} sink calls still pending`,
+    finished + interrupted !== emitted + dropped && 'finished + interrupted does not equal emitted + dropped',
+    emitted !== records.length + sinkFailures.length && `emitted is ${emitted}, but this run saw ${records.length + sinkFailures.length} sink calls`,
+    sinkErrors !== sinkFailures.length && `sinkErrors is ${sinkErrors}, but this run saw ${sinkFailures.length} sink failures`,
+    dropped !== 0 && `${dropped} records dropped`
+  ].filter(Boolean)
+  if (CHECK) {
+    process.stdout.write(counterFailures.length === 0 ? 'check: counters agree with the records\n' : counterFailures.map((f) => `check: FAILED: ${f}\n`).join(''))
+    if (counterFailures.length > 0) failed++
+  }
+
   if (CHECK) {
     process.stdout.write(failed === 0 ? 'check: all scenarios behaved as expected\n' : `check: ${failed} scenario(s) failed\n`)
     process.exitCode = failed === 0 ? 0 : 1

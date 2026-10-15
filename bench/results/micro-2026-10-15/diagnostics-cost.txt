@@ -1,0 +1,31 @@
+micro A/B: A = feat/types (73b53b3), B = working tree, 12 rounds x 40000 requests
+  round 1 full-log   A 73.8 µs  B 68.78 µs
+  round 1 ids-timing A 57.43 µs  B 59.4 µs
+  round 2 full-log   A 73.08 µs  B 73.05 µs
+  round 2 ids-timing A 56.68 µs  B 57.8 µs
+  round 3 full-log   A 73.8 µs  B 66.4 µs
+  round 3 ids-timing A 55.85 µs  B 60.15 µs
+  round 4 full-log   A 71.88 µs  B 70.7 µs
+  round 4 ids-timing A 55.45 µs  B 55.85 µs
+  round 5 full-log   A 72.28 µs  B 71.08 µs
+  round 5 ids-timing A 55.05 µs  B 58.98 µs
+  round 6 full-log   A 70.33 µs  B 70.3 µs
+  round 6 ids-timing A 55.05 µs  B 54.3 µs
+  round 7 full-log   A 72.28 µs  B 72.28 µs
+  round 7 ids-timing A 54.7 µs  B 57.83 µs
+  round 8 full-log   A 74.2 µs  B 75 µs
+  round 8 ids-timing A 55.88 µs  B 57.05 µs
+  round 9 full-log   A 73.05 µs  B 73.05 µs
+  round 9 ids-timing A 63.28 µs  B 64.45 µs
+  round 10 full-log   A 72.28 µs  B 77.33 µs
+  round 10 ids-timing A 53.53 µs  B 60.55 µs
+  round 11 full-log   A 75.78 µs  B 71.1 µs
+  round 11 ids-timing A 54.7 µs  B 57.43 µs
+  round 12 full-log   A 74.22 µs  B 74.2 µs
+  round 12 ids-timing A 56.65 µs  B 59.78 µs
+micro A/B — A = feat/types (73b53b3), B = working tree; 12 rounds x 40000 requests; CPU µs per request, in-process, no I/O
+
+| Variant | A | B | median paired diff | B lower in |
+|---|---|---|---|---|
+| full-log | 73.06 | 71.69 | -0.03 µs (-0.03%) | 8 of 12 |
+| ids-timing | 55.65 | 58.4 | 2.35 µs (4.22%) | 1 of 12 |

@@ -334,6 +334,46 @@ The middleware never writes request or response bodies, URLs or query strings, h
 
 What you add yourself through `extend`, `res.locals.observeRoute`, `route.resolver`, `service`, `release` or `Server-Timing` descriptions is your responsibility.
 
+## Local diagnostics
+
+The access log cannot show requests that have not ended yet, or records that never reached your sink. `getDiagnostics()` returns the package's own counters, so you can check that from inside the process:
+
+```js
+const { getDiagnostics } = require('express-observe')
+
+setInterval(() => logger.info({ expressObserve: getDiagnostics() }), 60_000).unref()
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "pid": 4242,
+  "threadId": 0,
+  "since": "2026-10-15T08:00:00.000Z",
+  "requests": { "started": 120, "finished": 117, "interrupted": 1, "inFlight": 2 },
+  "records": { "emitted": 118, "dropped": 0, "sinkErrors": 3, "sinkPending": 0 },
+  "warnings": 3
+}
+```
+
+| Counter | Meaning |
+|---|---|
+| `started` | Requests the middleware began observing. A second `observe()` on the same request does not count it again. |
+| `finished`, `interrupted` | Requests that ended, by the same rule as the record's `termination`. |
+| `inFlight` | `started − finished − interrupted` right now: requests that have no record yet. |
+| `emitted` | Records handed to your sink. A delivery attempt, not proof of delivery. |
+| `dropped` | Records that could not be built, so your sink was never called. Each one also raises a warning. |
+| `sinkErrors` | Sink calls that threw or returned a promise that rejected. |
+| `sinkPending` | Promises returned by your sink that have not settled yet. A number that keeps growing means your sink is stuck. |
+| `warnings` | The package's internal warnings, including those whose stderr line was rate-limited. |
+
+With logging enabled, once nothing is in flight: `finished + interrupted = emitted + dropped`.
+
+- **Scope: this process, or this worker thread.** Every `observe()` instance in the process adds to the same counters. Each cluster worker, worker thread and process has its own, so do not present one as a total. `pid`, `threadId` and `since` say where a snapshot came from. A second copy of the package installed elsewhere in `node_modules` counts separately.
+- **Counters only.** No reset: compare two snapshots. There are no per-route or per-status counters, no buffer, no timer, no HTTP endpoint and no process handlers. Publishing the snapshot is up to you.
+- **Not a recovery mechanism.** Counters die with the process. Requests that never reached `observe()` are not counted. With `log.enabled: false` the request counters still work, and the record counters stay at zero.
+- `diagnostic-lab --check` compares these counters with the records it received independently and fails if they disagree.
+
 ## Errors and interrupted connections
 
 - Errors passed to `next(err)` reach your error middleware unchanged. The record shows the status your handler sent.
@@ -345,7 +385,7 @@ What you add yourself through `extend`, `res.locals.observeRoute`, `route.resolv
 
 - **Express 4 does not catch rejected promises from `async` handlers.** What happens next depends on Node, not on this package. With Node 22's default (`--unhandled-rejections=throw`) the rejection is unhandled and **the process exits**: no record is written, and every request open in that process is cut off. If the application or its runtime keeps the process alive (for example `--unhandled-rejections=warn` or its own `unhandledRejection` handler), the request stays open until the client gives up and is then logged as `interrupted` with `status: null`. Catch errors yourself and call `next(err)`, or use a wrapper. Express 5 forwards a rejected promise *returned by a handler or middleware* to the error handler, and the request is logged as a finished 500; promises the handler does not return (timers, background work) are not covered. express-observe installs no global error handlers and is not an error-handling solution. Each case is tested in a separate Node process (`test/async-rejection-process.test.js`).
 - **Express's default error handler prints the stack to stderr** (4 and 5) whenever `NODE_ENV` is not `test`. That output comes from Express, not from this package. Install your own error middleware if stacks must stay out of stderr.
-- **No delivery guarantee.** See Sinks.
+- **No delivery guarantee.** See Sinks. `getDiagnostics()` shows sink failures and unsettled sink calls, but cannot show what happened after your sink returned.
 - **`durationMs` starts when the middleware runs.** Connection setup, TLS and request-header parsing happen earlier and are not included.
 - **Server-side only.** It cannot measure network latency, client rendering or device performance. It gives the client the IDs and timings it needs to correlate those itself.
 - **Express 5 route syntax** (`/*splat`, `{.:ext}`) is logged as written. Express 4 inline regex parameters such as `:id(\d+)` are logged as written too. `route.mounts` templates support literal and `:param` segments only, so a router mounted on a wildcard path gets `route: null` unless you label it.

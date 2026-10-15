@@ -1,5 +1,7 @@
 'use strict'
 
+const { counters } = require('./diagnostics')
+
 const SCHEMA_VERSION = 1
 const DEFAULT_WARN_INTERVAL_MS = 10_000
 
@@ -20,6 +22,7 @@ function createWarn (options = {}) {
   let suppressed = 0
 
   return function warn (context, err) {
+    counters.warnings++
     try {
       const t = now()
       if (t - lastAt < intervalMs) {
@@ -114,12 +117,14 @@ function defaultSink (record) {
 /**
  * Wrap a sink so that neither a synchronous throw nor an asynchronous rejection escapes.
  * No buffering, no retry: a record that fails is reported and dropped.
+ * Counts records handed to the sink, sink failures and unsettled sink promises (ADR-0010).
  *
  * @param {{ sink: (record: object) => unknown, onSinkError: ((err: unknown, record: object) => void) | null, warn: Function }} options
  * @returns {(record: object) => void}
  */
 function createDeliver ({ sink, onSinkError, warn }) {
   function reportFailure (err, record) {
+    counters.sinkErrors++
     if (onSinkError === null) {
       warn('log sink failed; record dropped', err)
       return
@@ -132,6 +137,7 @@ function createDeliver ({ sink, onSinkError, warn }) {
   }
 
   return function deliver (record) {
+    counters.emitted++
     let result
     try {
       result = sink(record)
@@ -140,12 +146,28 @@ function createDeliver ({ sink, onSinkError, warn }) {
       return
     }
     if (result === null || (typeof result !== 'object' && typeof result !== 'function')) return
+    let then
     try {
-      if (typeof result.then === 'function') {
-        result.then(undefined, (err) => reportFailure(err, record))
-      }
+      then = result.then
     } catch (err) {
       reportFailure(err, record)
+      return
+    }
+    if (typeof then !== 'function') return
+
+    // A thenable may call its callbacks more than once, or throw after calling one: settle exactly once.
+    let settled = false
+    const settle = () => {
+      if (settled) return false
+      settled = true
+      counters.sinkPending--
+      return true
+    }
+    counters.sinkPending++
+    try {
+      then.call(result, settle, (err) => { if (settle()) reportFailure(err, record) })
+    } catch (err) {
+      if (settle()) reportFailure(err, record)
     }
   }
 }

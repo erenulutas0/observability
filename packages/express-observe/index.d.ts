@@ -9,6 +9,41 @@ declare namespace observe {
   /** Same function as the default export, for `const { observe } = require('express-observe')`. */
   const observe: (options?: Options) => RequestHandler
 
+  /**
+   * Snapshot of the local diagnostics counters (ADR-0010) for this process or worker thread, across every
+   * observe() instance in it. Not a cluster total. Returns a new object on each call; there is no reset, so take
+   * differences between snapshots.
+   */
+  function getDiagnostics (): Diagnostics
+
+  interface Diagnostics {
+    schemaVersion: 1
+    pid: number
+    threadId: number
+    /** ISO 8601 time when the package was loaded, i.e. when counting started. */
+    since: string
+    requests: {
+      /** Requests on which an instance began observing (a second instance on the same request is not counted). */
+      started: number
+      finished: number
+      interrupted: number
+      /** started - finished - interrupted at the time of the snapshot. */
+      inFlight: number
+    }
+    records: {
+      /** Records handed to a sink (the sink was called). Not proof of delivery. */
+      emitted: number
+      /** Records that could not be built, so the sink was never called. */
+      dropped: number
+      /** Sink calls that threw or returned a promise that rejected. */
+      sinkErrors: number
+      /** Promises returned by sinks that have not settled yet. */
+      sinkPending: number
+    }
+    /** Internal warnings, including those whose stderr line was rate-limited. */
+    warnings: number
+  }
+
   /** `finished`: the last chunk was handed to the OS. `interrupted`: the connection ended first. */
   type Termination = 'finished' | 'interrupted'
 

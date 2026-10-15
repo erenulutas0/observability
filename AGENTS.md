@@ -22,7 +22,7 @@ Durable instructions for any agent or contributor. Keep this file short; details
 - Performance changes need evidence: a paired A/B with `bench/micro.js` (and `bench/ab.js` for HTTP) against the previous commit, beating an A-vs-A run. Keep a change only if it wins in every round.
 - The middleware must never: throw into the request pipeline, call `next(err)` for its own failures, mutate headers after `res.headersSent`, or log bodies, URLs, query strings, headers, cookies, IPs, user identifiers, error messages or stack traces by default.
 - Durations use `process.hrtime.bigint()`. IDs use `crypto.randomUUID()`.
-- Public API surface is `observe(options)` plus `res.serverTiming`, `req.id`, the documented record shape, and the `express-observe analyze` and `doctor` CLIs (options, JSON report shapes, exit codes). `doctor` must keep the ADR-0005 safety limits. Anything else is private.
+- Public API surface is `observe(options)` plus `res.serverTiming`, `req.id`, the documented record shape, `getDiagnostics()` and its snapshot shape (ADR-0010), and the `express-observe analyze` and `doctor` CLIs (options, JSON report shapes, exit codes). `doctor` must keep the ADR-0005 safety limits. Anything else is private.
 
 ## Tests
 

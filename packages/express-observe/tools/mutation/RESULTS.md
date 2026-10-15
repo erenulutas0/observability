@@ -1,6 +1,24 @@
 # Mutation check results
 
-Run on 2026-10-14, Node v22.23.2, Windows 11, express-observe at branch feat/review-hardening (before commit). Re-run with `node tools/mutation/run.js`.
+Run on 2026-10-15, Node v22.23.2, Windows 11, express-observe at branch feat/diagnostics (before commit). Re-run with `node tools/mutation/run.js`.
+
+## diagnostics counters
+
+tests: test/diagnostics.test.js
+
+| Mutation | Outcome | Tests |
+|---|---|---|
+| started not counted | caught | 10 failed, 6 passed, 16 total |
+| interrupted counted as finished | caught | 2 failed, 14 passed, 16 total |
+| terminations not counted when logging is disabled | caught | 1 failed, 15 passed, 16 total |
+| second instance on the same request counted again | caught | 1 failed, 15 passed, 16 total |
+| emitted not counted | caught | 12 failed, 4 passed, 16 total |
+| dropped not counted | caught | 2 failed, 14 passed, 16 total |
+| sink errors not counted | caught | 4 failed, 12 passed, 16 total |
+| sink promises never leave pending | caught | 2 failed, 14 passed, 16 total |
+| thenable settled more than once | caught | 1 failed, 15 passed, 16 total |
+| rate-limited warnings not counted | caught | 1 failed, 15 passed, 16 total |
+| inFlight ignores interrupted requests | caught | 2 failed, 14 passed, 16 total |
 
 ## doctor: safety limits and checks (ADR-0005)
 

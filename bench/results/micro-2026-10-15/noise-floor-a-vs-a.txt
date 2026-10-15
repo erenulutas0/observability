@@ -1,0 +1,31 @@
+micro A/B: A = feat/types (73b53b3), B = feat/types (73b53b3) again, 12 rounds x 40000 requests
+  round 1 full-log   A 74.63 µs  B 71.1 µs
+  round 1 ids-timing A 57.05 µs  B 53.1 µs
+  round 2 full-log   A 85.93 µs  B 88.28 µs
+  round 2 ids-timing A 61.73 µs  B 63.65 µs
+  round 3 full-log   A 86.35 µs  B 86.33 µs
+  round 3 ids-timing A 64.08 µs  B 66.4 µs
+  round 4 full-log   A 88.68 µs  B 87.5 µs
+  round 4 ids-timing A 61.33 µs  B 62.9 µs
+  round 5 full-log   A 85.18 µs  B 80.85 µs
+  round 5 ids-timing A 62.9 µs  B 63.3 µs
+  round 6 full-log   A 88.68 µs  B 85.18 µs
+  round 6 ids-timing A 57.45 µs  B 68.38 µs
+  round 7 full-log   A 73.83 µs  B 76.95 µs
+  round 7 ids-timing A 64.45 µs  B 67.2 µs
+  round 8 full-log   A 82.83 µs  B 86.73 µs
+  round 8 ids-timing A 68.72 µs  B 69.53 µs
+  round 9 full-log   A 84.35 µs  B 85.95 µs
+  round 9 ids-timing A 63.3 µs  B 68 µs
+  round 10 full-log   A 88.3 µs  B 85.93 µs
+  round 10 ids-timing A 60.93 µs  B 66.4 µs
+  round 11 full-log   A 81.63 µs  B 78.53 µs
+  round 11 ids-timing A 63.3 µs  B 62.5 µs
+  round 12 full-log   A 82.43 µs  B 79.68 µs
+  round 12 ids-timing A 64.1 µs  B 63.3 µs
+micro A/B — A = feat/types (73b53b3), B = feat/types (73b53b3) again; 12 rounds x 40000 requests; CPU µs per request, in-process, no I/O
+
+| Variant | A | B | median paired diff | B lower in |
+|---|---|---|---|---|
+| full-log | 84.76 | 85.55 | -1.77 µs (-2.09%) | 8 of 12 |
+| ids-timing | 63.1 | 65.03 | 1.75 µs (2.77%) | 3 of 12 |

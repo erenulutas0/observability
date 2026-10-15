@@ -18,6 +18,7 @@ const {
 } = require('./logger')
 const { compileMounts, trackMatchedRoute, resolveRouteLabel } = require('./route-template')
 const { createEventLoopSampler } = require('./event-loop')
+const { counters, getDiagnostics } = require('./diagnostics')
 
 // Per-response state lives under a symbol so it never collides with application properties.
 const kState = Symbol('express-observe.state')
@@ -68,9 +69,17 @@ function observe (options) {
       assignRequestId(req, res, state, config.requestId, warn)
       attachHeaderHook(res, state, config.serverTiming, warn)
       if (sampler !== null) sampler.start()
-      if (deliver !== null) attachAccessLog(req, res, state, config, warn, deliver, sampler)
     } catch (err) {
       warn('internal error while preparing request; continuing without full observation', err)
+    }
+
+    // Separate from the steps above so that the request is counted and its termination tracked even if one of
+    // them failed (ADR-0010). The listeners fire asynchronously, so started is counted before any termination.
+    try {
+      attachTermination(req, res, state, config, warn, deliver, sampler)
+      counters.started++
+    } catch (err) {
+      warn('internal error while tracking request termination', err)
     }
 
     next()
@@ -142,19 +151,26 @@ function onResponseEnd (res, listener) {
 }
 
 /**
- * Emit exactly one record when the response terminates.
+ * Count the termination and, with logging enabled, emit exactly one record.
  * - finished:    the response emitted 'finish' (the last chunk was handed to the OS; not proof of client receipt)
  * - interrupted: anything else (the connection ended first). This is an HTTP fact, not evidence of user intent.
  * status is only reported if headers were actually sent; Node's default statusCode 200 is not a response.
  */
-function attachAccessLog (req, res, state, config, warn, deliver, sampler) {
-  const getMatchedRoute = trackMatchedRoute(req)
+function attachTermination (req, res, state, config, warn, deliver, sampler) {
+  const getMatchedRoute = deliver === null ? null : trackMatchedRoute(req)
 
   onResponseEnd(res, function onTerminated (finished) {
     if (state.logged) return
     state.logged = true
     state.finished = finished
+    if (finished) counters.finished++
+    else counters.interrupted++
+    if (deliver === null) return
+
+    let record
     try {
+      // Preparation failed before an ID was assigned: a record without requestId would break the schema.
+      if (state.requestId === null) throw new Error('request was not prepared')
       const endedAt = nowNs()
       const headersSent = res.headersSent === true
       const fields = {
@@ -173,11 +189,13 @@ function attachAccessLog (req, res, state, config, warn, deliver, sampler) {
       // Largest event-loop lateness from one sampling interval before entry until now (ADR-0009). Added only
       // when enabled, so the default path builds exactly the same object as before.
       if (sampler !== null) fields.eventLoopDelayMs = sampler.maxSince(Number(state.startedAt) / 1e6 - sampler.resolutionMs)
-      const record = buildRecord(fields)
-      deliver(applyExtension(record, config.log.extend, req, res, warn))
+      record = applyExtension(buildRecord(fields), config.log.extend, req, res, warn)
     } catch (err) {
+      counters.dropped++
       warn('failed to build access-log record; record dropped', err)
+      return
     }
+    deliver(record)
   })
 }
 
@@ -291,3 +309,4 @@ function assertKnownKeys (value, allowed, path) {
 
 module.exports = observe
 module.exports.observe = observe
+module.exports.getDiagnostics = getDiagnostics

@@ -37,6 +37,9 @@ const server = app.listen(0, '127.0.0.1', () => {
           { requestId: id, route: '/users/:id', status: 200, termination: 'finished' }
         )
         assert.ok(!JSON.stringify(records[0]).includes('secret'))
+        const diagnostics = observe.getDiagnostics()
+        assert.deepStrictEqual(diagnostics.requests, { started: 1, finished: 1, interrupted: 0, inFlight: 0 })
+        assert.strictEqual(diagnostics.records.emitted, 1)
         process.stdout.write('runtime ok\n')
       }, 50)
     })
