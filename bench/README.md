@@ -18,6 +18,8 @@ node bench/run.js --duration=30 --warmup=10 --connections=100 --rounds=5 --varia
 
 Close other heavy programs first. The script exits with code 1 if any correctness check fails.
 
+`--handler=work` replaces the tiny handler with one that does a fixed amount of CPU work and returns about 3 KB of JSON. The work is about 0.27 ms on the reference machine. Use it to see the relative overhead against a handler that costs something; the default `tiny` handler is the worst case. It uses CPU work, not a timer, because Windows timers fire only about every 15.6 ms. A first attempt with a 2 ms `setTimeout` measured that granularity instead, and its results are kept, marked invalid.
+
 ## Variants
 
 | Variant | Middleware |
@@ -27,7 +29,7 @@ Close other heavy programs first. The script exits with code 1 if any correctnes
 | `full-log` | `observe()`: everything on, default stdout sink |
 | `pino-http` | pino-http 11 with a UUID echoed in `X-Request-Id`, `base: null`, and serializers trimmed to method and status. No Server-Timing, no route template |
 
-Every variant serves `GET /users/42` from a `/users/:id` route that returns a small JSON body.
+Every variant serves `GET /users/42` from a `/users/:id` route. With the default handler it returns a small JSON body at once; with `--handler=work`, see above.
 
 ## Method
 

@@ -1,0 +1,170 @@
+{
+  "environment": {
+    "date": "2026-10-15T07:26:54.534Z",
+    "nodeVersion": "v22.23.2",
+    "expressVersion": "4.22.3",
+    "expressObserveVersion": "0.1.0-dev.0",
+    "autocannonVersion": "8.0.0",
+    "pinoHttpVersion": "11.0.0",
+    "pinoVersion": "10.4.0",
+    "os": "Windows_NT 10.0.26200 (win32 x64)",
+    "osVersion": "Windows 11 Pro",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i5-12500",
+    "logicalCpus": 12,
+    "totalMemGb": 63.7,
+    "powerPlan": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Yüksek performans)",
+    "sourceCommit": "20622f5",
+    "workingTreeDirty": true
+  },
+  "config": {
+    "handler": "tiny",
+    "durationSec": 30,
+    "warmupSec": 10,
+    "connections": 50,
+    "rounds": 5,
+    "pipelining": 1,
+    "variants": [
+      "baseline",
+      "ids-timing",
+      "full-log",
+      "pino-http"
+    ],
+    "out": "E:\\ev-projesi-observability\\bench\\results"
+  },
+  "variant": "full-log",
+  "round": 2,
+  "startedAt": "2026-10-15T07:30:33.100Z",
+  "finishedAt": "2026-10-15T07:31:03.118Z",
+  "problems": [],
+  "smoke": {
+    "status": 200,
+    "xRequestId": true,
+    "serverTiming": true
+  },
+  "fromResponseEvents": {
+    "samples": 194175,
+    "latencyMs": {
+      "p50": 5.2,
+      "p90": 14.54,
+      "p95": 28.19,
+      "p99": 45.04,
+      "p99_9": 68.2,
+      "max": 120.84
+    }
+  },
+  "throughput": {
+    "requestsPerSecMean": 6473.07,
+    "requestsTotal": 194175
+  },
+  "server": {
+    "type": "stats",
+    "requestsTotal": 256514,
+    "requestsMeasured": 194225,
+    "cpuUserMs": 27359,
+    "cpuSystemMs": 5922,
+    "rssBytes": 162877440,
+    "maxRssKb": 160888,
+    "cpuMsPer1kRequests": 171.35,
+    "maxRssMb": 157.12
+  },
+  "log": {
+    "bytes": 76891257,
+    "lines": 256514,
+    "bytesPerLine": 299.75
+  },
+  "autocannon": {
+    "url": "http://127.0.0.1:58811/users/42",
+    "connections": 50,
+    "sampleInt": 1000,
+    "pipelining": 1,
+    "duration": 30.02,
+    "samples": 30,
+    "start": "2026-10-15T07:30:33.100Z",
+    "finish": "2026-10-15T07:31:03.118Z",
+    "errors": 0,
+    "timeouts": 0,
+    "mismatches": 0,
+    "non2xx": 0,
+    "resets": 0,
+    "1xx": 0,
+    "2xx": 194175,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "statusCodeStats": {
+      "200": {
+        "count": 194175
+      }
+    },
+    "latency": {
+      "average": 7.22,
+      "mean": 7.22,
+      "stddev": 8.68,
+      "min": 1,
+      "max": 120,
+      "p0_001": 0,
+      "p0_01": 0,
+      "p0_1": 0,
+      "p1": 1,
+      "p2_5": 1,
+      "p10": 2,
+      "p25": 3,
+      "p50": 5,
+      "p75": 7,
+      "p90": 14,
+      "p97_5": 36,
+      "p99": 45,
+      "p99_9": 68,
+      "p99_99": 99,
+      "p99_999": 120,
+      "totalCount": 194175
+    },
+    "requests": {
+      "average": 6473.07,
+      "mean": 6473.07,
+      "stddev": 579.74,
+      "min": 4887,
+      "max": 7203,
+      "total": 194175,
+      "p0_001": 4887,
+      "p0_01": 4887,
+      "p0_1": 4887,
+      "p1": 4887,
+      "p2_5": 4887,
+      "p10": 5855,
+      "p25": 6023,
+      "p50": 6695,
+      "p75": 6971,
+      "p90": 7047,
+      "p97_5": 7203,
+      "p99": 7203,
+      "p99_9": 7203,
+      "p99_99": 7203,
+      "p99_999": 7203,
+      "sent": 194225
+    },
+    "throughput": {
+      "average": 1754146.14,
+      "mean": 1754146.14,
+      "stddev": 157206.01,
+      "min": 1324378,
+      "max": 1952013,
+      "total": 52621426,
+      "p0_001": 1325055,
+      "p0_01": 1325055,
+      "p0_1": 1325055,
+      "p1": 1325055,
+      "p2_5": 1325055,
+      "p10": 1587199,
+      "p25": 1632255,
+      "p50": 1814527,
+      "p75": 1889279,
+      "p90": 1909759,
+      "p97_5": 1952767,
+      "p99": 1952767,
+      "p99_9": 1952767,
+      "p99_99": 1952767,
+      "p99_999": 1952767
+    }
+  }
+}

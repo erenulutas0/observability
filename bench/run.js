@@ -22,7 +22,7 @@ const PATH = '/users/42'
 // Must match the handlers in server.js.
 const HANDLERS = {
   tiny: 'a small JSON body, returned at once',
-  work: 'about 3 KB of JSON after a 2 ms asynchronous wait'
+  work: 'about 3 KB of JSON after a fixed amount of CPU work (about 0.27 ms)'
 }
 const KNOWN_ARGS = ['duration', 'warmup', 'connections', 'rounds', 'variants', 'handler', 'out']
 
@@ -319,7 +319,7 @@ function summaryMarkdown (env, config, rows, sessionId) {
   lines.push('- Logs went to a file through the server process\'s stdout. Both the default sink and pino write synchronously in that setup. A pipe, a terminal or a remote collector behave differently.')
   lines.push(config.handler === 'tiny'
     ? '- The handler does almost nothing, so middleware cost is a large share of each request. In a real application the relative overhead is smaller; the absolute cost per request is the more transferable number.'
-    : '- The handler waits 2 ms on a timer and serializes about 3 KB of JSON. That is closer to a real endpoint, but a real database call also costs CPU, which this handler does not.')
+    : '- The handler does a fixed amount of synchronous CPU work (about 0.27 ms) and returns about 3 KB of JSON. Real handlers also wait on I/O, which costs no CPU but holds connections; this handler does not model that.')
   lines.push('- The pino-http variant is configured to be comparable, not identical: it has no Server-Timing and no route templates, and it uses its own serializers.')
   lines.push('- Background activity on the machine was not controlled. The min–max ranges show run-to-run spread.')
   return lines.join('\n') + '\n'

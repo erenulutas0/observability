@@ -5,8 +5,10 @@
 //   node server.js <variant> [tiny|work]
 //
 // Handlers: `tiny` answers at once with a small JSON body, so middleware cost is a large share of each request
-// (worst case). `work` waits 2 ms (standing in for a database or remote call) and returns about 3 KB of JSON,
-// closer to a real endpoint.
+// (worst case). `work` does a fixed amount of CPU work first (10 JSON round trips of a 3 KB payload, about
+// 0.27 ms on the reference machine) and returns that payload, so the middleware is measured against a handler that
+// costs something. It is CPU work rather than a timer on purpose: Windows timers fire about every 15.6 ms, so a
+// "2 ms" setTimeout measured timer granularity instead (results/2026-10-15-074040-invalid-timer-granularity).
 //
 // Talks to the parent over IPC:
 //   child  -> { type: 'ready', port }
@@ -56,6 +58,12 @@ if (handler !== 'tiny' && handler !== 'work') {
   process.exit(2)
 }
 const ITEMS = Array.from({ length: 40 }, (_, i) => ({ id: i, name: `item-${i}`, price: i * 1.25, tags: ['synthetic', 'bench'] }))
+const WORK_ROUNDS = 10
+function buildPayload (id) {
+  let payload
+  for (let i = 0; i < WORK_ROUNDS; i++) payload = JSON.parse(JSON.stringify({ id, items: ITEMS }))
+  return payload
+}
 if (!Object.hasOwn(VARIANTS, variant)) {
   process.stderr.write(`unknown variant ${JSON.stringify(variant)}; expected one of ${Object.keys(VARIANTS).join(', ')}\n`)
   process.exit(2)
@@ -76,7 +84,7 @@ app.get('/users/:id', handler === 'tiny'
     }
   : (req, res) => {
       requestsTotal++
-      setTimeout(() => res.json({ id: req.params.id, items: ITEMS }), 2)
+      res.json(buildPayload(req.params.id))
     })
 
 const server = app.listen(0, '127.0.0.1', () => {
