@@ -1,6 +1,19 @@
 # Mutation check results
 
-Run on 2026-10-15, Node v22.23.2, Windows 11, express-observe at branch feat/diagnostics (before commit). Re-run with `node tools/mutation/run.js`.
+Run on 2026-10-15, Node v22.23.2, Windows 11, express-observe at branch feat/diagnostics (before commit); the analyze section was added on branch feat/analyze-quality the same day. Re-run with `node tools/mutation/run.js`.
+
+## analyze: honesty and data quality
+
+tests: test/analyze.test.js
+
+| Mutation | Outcome | Tests |
+|---|---|---|
+| interrupted durations included in latency percentiles | caught | 3 failed, 40 passed, 43 total |
+| p95 shown below the minimum sample count | caught | 1 failed, 42 passed, 43 total |
+| a bad line in the middle reported as a truncated end | caught | 1 failed, 42 passed, 43 total |
+| UTF-16 input not detected | caught | 2 failed, 41 passed, 43 total |
+| coverage note removed | caught | 2 failed, 41 passed, 43 total |
+| unsupported schemaVersion read as version 1 | caught | 2 failed, 41 passed, 43 total |
 
 ## diagnostics counters
 

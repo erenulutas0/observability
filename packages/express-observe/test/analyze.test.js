@@ -243,6 +243,98 @@ describe('analyze: optional eventLoopDelayMs (ADR-0009)', () => {
   })
 })
 
+describe('analyze: data quality and coverage (ADR-0004 addendum)', () => {
+  function writeRaw (content) {
+    const file = path.join(tmp, `raw-${++fileCounter}.jsonl`)
+    fs.writeFileSync(file, content)
+    return file
+  }
+
+  test('a truncated last line is reported as such; a bad line in the middle is not', () => {
+    const full = JSON.stringify(rec())
+    const cut = json(['analyze', writeRaw(`${full}\n${full}\n${full.slice(0, 70)}`)])
+    expect(cut.input).toMatchObject({ records: 2, lastLineIncomplete: true })
+    expect(cut.input.skipped.notJson).toBe(1)
+    expect(cut.notes.some((n) => n.startsWith('The last line is not valid JSON.'))).toBe(true)
+
+    const middle = json(['analyze', writeRaw(`${full}\n${full.slice(0, 70)}\n${full}\n\n`)])
+    expect(middle.input).toMatchObject({ records: 2, lastLineIncomplete: false })
+    expect(middle.input.skipped.notJson).toBe(1)
+    expect(middle.notes.some((n) => n.startsWith('The last line'))).toBe(false)
+  })
+
+  test('a UTF-8 byte order mark before the first record is accepted', () => {
+    const report = json(['analyze', writeRaw(`﻿${JSON.stringify(rec())}\n${JSON.stringify(rec())}\n`)])
+    expect(report.input).toMatchObject({ records: 2, skippedTotal: 0, suspectUtf16: false })
+  })
+
+  test('a UTF-16 file fails with a hint instead of a bare "no records"', () => {
+    const text = `${JSON.stringify(rec())}\r\n${JSON.stringify(rec())}\r\n`
+    const file = writeRaw(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]))
+    const { status, stderr } = cli(['analyze', file])
+    expect(status).toBe(1)
+    expect(stderr).toMatch(/no express-observe records found/)
+    expect(stderr).toMatch(/may be UTF-16, convert it to UTF-8/)
+  })
+
+  test('UTF-16 fragments next to valid records produce a note', () => {
+    const fragment = Buffer.from(JSON.stringify(rec()), 'utf16le')
+    const file = writeRaw(Buffer.concat([Buffer.from(`${JSON.stringify(rec())}\n`), fragment, Buffer.from(`\n${JSON.stringify(rec())}\n`)]))
+    const report = json(['analyze', file])
+    expect(report.input).toMatchObject({ records: 2, suspectUtf16: true })
+    expect(report.notes.some((n) => n.includes('may be UTF-16'))).toBe(true)
+  })
+
+  test('records with another schemaVersion are skipped with a note that says which version is read', () => {
+    const report = json(['analyze', writeLog([rec(), rec({ schemaVersion: 2 }), rec({ schemaVersion: 2 })])])
+    expect(report.input).toMatchObject({ records: 1 })
+    expect(report.input.skipped.unsupportedSchema).toBe(2)
+    expect(report.notes).toContain('2 record(s) have a schemaVersion this analyze does not read (it reads 1). Use the analyze from the express-observe version that wrote them.')
+  })
+
+  test('records with malformed fields are skipped with their own note', () => {
+    const report = json(['analyze', writeLog([rec(), rec({ durationMs: 'fast' })])])
+    expect(report.input.skipped.invalid).toBe(1)
+    expect(report.notes.some((n) => n.startsWith('1 record(s) look like express-observe records but have missing or malformed fields.'))).toBe(true)
+  })
+
+  test('the report states its method and that it covers this input only', () => {
+    const report = json(['analyze', writeLog([rec()])])
+    expect(report.reportVersion).toBe(1)
+    expect(report.method).toEqual({ quantiles: 'nearest-rank', minSamples: { p95: 20, p99: 100 }, latency: 'finished-only' })
+    expect(report.notes.some((n) => n.startsWith('This report describes the records in this input only.'))).toBe(true)
+
+    const { stdout } = cli(['analyze', writeLog([rec()])])
+    expect(stdout).toMatch(/^scope: {4}records in this input only; sampling or loss before it is unknown$/m)
+    expect(stdout).toMatch(/nearest-rank percentiles; p95 needs 20 and p99 needs 100 values/)
+  })
+
+  test('interrupted requests do not make a group look slow: their durations stay out, and a note says so', () => {
+    // 20 requests finished in 10 ms; 20 more were cut off after 500 ms. Latency describes the 20 that finished.
+    const lines = [
+      ...Array.from({ length: 20 }, () => rec({ durationMs: 10 })),
+      ...Array.from({ length: 20 }, () => rec({ durationMs: 500, status: null, headerDurationMs: null, termination: 'interrupted' }))
+    ]
+    const report = json(['analyze', writeLog(lines)])
+    const g = group(report, 'GET /users/:id')
+    expect(g).toMatchObject({ count: 40, finished: 20, interrupted: 20, interruptedRate: 0.5 })
+    expect(g.durationMs).toMatchObject({ n: 20, p95: 10, max: 10 })
+    expect(report.notes.some((n) => n.includes('can look faster than its clients experienced it'))).toBe(true)
+  })
+
+  test('a filtered log gives filtered rates, and the report says it cannot correct for that', () => {
+    // The review's arithmetic counter-example: 1000 requests, 100 of them 5xx. A pipeline keeps every error and
+    // 90 of the 900 successes. The true 5xx rate is 10%; the retained file says 100 / 190.
+    const lines = [
+      ...Array.from({ length: 100 }, () => rec({ status: 503 })),
+      ...Array.from({ length: 90 }, () => rec({ status: 200 }))
+    ]
+    const report = json(['analyze', writeLog(lines)])
+    expect(report.totals.errorRate5xx).toBe(0.526)
+    expect(report.notes.some((n) => n.includes('counts and rates are not totals for all traffic'))).toBe(true)
+  })
+})
+
 describe('analyze: text output', () => {
   test('prints a table with a totals row and notes', () => {
     const lines = Array.from({ length: 25 }, (_, i) => rec({ durationMs: i + 1 }))

@@ -140,7 +140,7 @@ Review of the project summary from a separate session; evidence table in docs/re
 - [x] P3 packed-tarball consumer check (tools/consumer, npm run consumer:check, in CI): CommonJS runtime, strict tsc with must-fail cases, CLI from node_modules; Express 4 + TS 5.9 and Express 5 + TS 7.0 pass. Loosening one option type made the check fail, as intended — 2026-10-15
 - [x] P1 local diagnostics counters: getDiagnostics() (ADR-0010), process/worker scope with pid, threadId and since; requests started/finished/interrupted/inFlight, records emitted/dropped/sinkErrors/sinkPending, warnings. No reset, buffers, timers, endpoint or process handlers — 2026-10-15
 - [x] P1 acceptance: 16 tests (Express 4 and 5) incl. real-socket disconnect, worker-thread scope, no handlers or timers; diagnostic-lab --check compares the counters with the records it received; 11 mutations in tools/mutation/specs/diagnostics.js all caught — 2026-10-15
-- [ ] P2 analyze coverage notes and data-quality fixtures
+- [x] P2 analyze: coverage note and `scope:` line (input only, not all traffic), `method` in the report, notes for truncated last line, UTF-16 input, unsupported schemaVersion and malformed records; review's sampling counter-example as a test; 6 mutations caught (ADR-0004 addendum) — 2026-10-15
 - [ ] P4 same-commit benchmark on a quiet machine; controlled pilot
 
 ## Repository

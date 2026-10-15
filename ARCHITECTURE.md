@@ -260,6 +260,12 @@ packages/express-observe/
 - Input: files or stdin, JSON lines, LF or CRLF. A record must have `schemaVersion: 1` and valid core fields; extra top-level fields from wrapping loggers are ignored. Skipped lines are counted per reason.
 - Per group: count, finished, interrupted, status classes, 5xx rate, `durationMs` p50/p95/p99/max and `headerDurationMs` p50/p95/p99, computed from finished records only. p95 needs 20 values and p99 needs 100; otherwise `null`.
 - Memory: two `Float64Array` values per finished request; no bounded mode yet.
+- Coverage and data quality (ADR-0004 addendum, 2026-10-15):
+  - Every report states that it covers its input only, not all traffic. The text header has a `scope:` line; the notes and `--json` say the same.
+  - `--json` carries `method` (nearest-rank, minimum samples, finished-only).
+  - `input.lastLineIncomplete` flags a truncated last line, and `input.suspectUtf16` flags lines with NUL characters.
+  - Unsupported schema versions and malformed records get their own notes.
+  - All of it is additive, so `reportVersion` stays 1.
 - Report JSON carries `reportVersion: 1`. Exit codes 0 / 1 / 2 as in the ADR.
 
 ## 12. `express-observe doctor` (CLI) **[implemented, ADR-0005]**

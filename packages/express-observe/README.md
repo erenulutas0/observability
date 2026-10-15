@@ -274,6 +274,14 @@ What the report deliberately does:
 - Latency percentiles use **finished** requests only. Interrupted requests are counted separately.
 - p95 needs at least 20 values and p99 at least 100 in a group; with fewer they are shown as `-` instead of a misleading number.
 - It ends with notes derived from the data: unknown routes, interruptions and what they do not prove, mixed services or releases, withheld percentiles.
+- It describes **the records in its input only**. If a pipeline sampled, filtered or lost records before they reached the file, counts and rates describe what is left, not all traffic. For example, keeping every error but one success in ten turns a 10% error rate into 53%. The report says so; it cannot correct for it.
+- It reports its method (nearest-rank percentiles, minimum samples, finished requests only) in the header and in `--json` under `method`.
+- Data-quality checks: lines are skipped and counted by reason, and some cases get their own note.
+  - A truncated last line, from a log cut while it was being written.
+  - Records with another `schemaVersion`.
+  - Records with malformed fields.
+  - Input that looks like UTF-16, for example from Windows PowerShell 5 redirection. Convert such files to UTF-8.
+  - A UTF-8 byte order mark is accepted.
 - Text from the log is printed as plain ASCII, so a crafted log line cannot inject terminal escape codes.
 
 Exit codes: `0` report printed, `1` unreadable input or no valid records, `2` usage error. The full report shape is in `--json`; `reportVersion` changes on incompatible updates.

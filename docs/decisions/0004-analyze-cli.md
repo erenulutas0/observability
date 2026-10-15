@@ -26,3 +26,21 @@ The middleware writes one JSON record per request. Without a dashboard, the firs
 - Memory grows with the number of records (two numbers per finished request). Fine for local files of a few million lines; a bounded histogram mode is a possible later change if needed.
 - The CLI becomes part of the public surface: its options, JSON report shape (`reportVersion: 1`) and exit codes are versioned with the package.
 - `express-observe doctor` and any other subcommands can reuse the same `bin` dispatcher.
+
+## Addendum (2026-10-15): coverage, method and data quality
+
+An external review of the project summary (item P2) asked that analyze never present retained logs as all traffic. It also asked for a statement of the quantile method and for checks against misleading input. The changes are additive; `reportVersion` stays 1.
+
+- **Coverage.**
+  - Every report ends with a note that it describes the records in its input only. It cannot know about sampling, filtering or loss before the input.
+  - The text header has a `scope:` line saying the same.
+  - A test uses the review's arithmetic counter-example. Keeping all 100 errors and 90 of 900 successes reports a 52.6% error rate where the true rate is 10%. The test fixes that analyze reports what is in the file and says it cannot correct for it.
+- **Method.** `--json` has `method: { quantiles: 'nearest-rank', minSamples: { p95: 20, p99: 100 }, latency: 'finished-only' }`. The text output states the same under the table.
+- **Interrupted requests.** They were already excluded from latency. The note now also says a group with many interrupted requests can look faster than its clients experienced it.
+- **Data quality.**
+  - `input.lastLineIncomplete` is true when the last non-empty line is not JSON, which typically means a log cut mid-write. It comes with a note.
+  - `input.suspectUtf16` is true when skipped lines contain NUL characters. It comes with a note, and a hint in the "no records" error.
+  - Unsupported `schemaVersion` and malformed records get their own notes.
+  - A UTF-8 byte order mark was already accepted; it is now tested.
+- **Not done.** Detecting duplicate request IDs would need memory per record. Weighted quantiles for known sampling rates and baseline–candidate comparison stay out of scope until there is a real need.
+- Six new mutations in `tools/mutation/specs/analyze.js`, all caught.
