@@ -2,7 +2,11 @@
 
 // Benchmark target. Started as a child process by run.js, one fresh process per measured run.
 //
-//   node server.js <variant>
+//   node server.js <variant> [tiny|work]
+//
+// Handlers: `tiny` answers at once with a small JSON body, so middleware cost is a large share of each request
+// (worst case). `work` waits 2 ms (standing in for a database or remote call) and returns about 3 KB of JSON,
+// closer to a real endpoint.
 //
 // Talks to the parent over IPC:
 //   child  -> { type: 'ready', port }
@@ -45,6 +49,13 @@ const VARIANTS = {
 }
 
 const variant = process.argv[2]
+const handler = process.argv[3] ?? 'tiny'
+if (handler !== 'tiny' && handler !== 'work') {
+  process.stderr.write(`unknown handler ${JSON.stringify(handler)}; expected tiny or work
+`)
+  process.exit(2)
+}
+const ITEMS = Array.from({ length: 40 }, (_, i) => ({ id: i, name: `item-${i}`, price: i * 1.25, tags: ['synthetic', 'bench'] }))
 if (!Object.hasOwn(VARIANTS, variant)) {
   process.stderr.write(`unknown variant ${JSON.stringify(variant)}; expected one of ${Object.keys(VARIANTS).join(', ')}\n`)
   process.exit(2)
@@ -58,10 +69,15 @@ const app = express()
 app.disable('x-powered-by')
 app.disable('etag')
 VARIANTS[variant](app)
-app.get('/users/:id', (req, res) => {
-  requestsTotal++
-  res.json({ id: req.params.id, ok: true })
-})
+app.get('/users/:id', handler === 'tiny'
+  ? (req, res) => {
+      requestsTotal++
+      res.json({ id: req.params.id, ok: true })
+    }
+  : (req, res) => {
+      requestsTotal++
+      setTimeout(() => res.json({ id: req.params.id, items: ITEMS }), 2)
+    })
 
 const server = app.listen(0, '127.0.0.1', () => {
   process.send({ type: 'ready', port: server.address().port })
