@@ -34,6 +34,38 @@ const SINK_FAILURE_ROUTES = {
 }
 const SLOW_SINK_MS = 300
 
+/**
+ * L9: an in-process stand-in for a cache or database client. While the dependency is "down", calls wait until it is
+ * back, as a client library does when it queues commands during a reconnect. The outage has a fixed length and can
+ * only be started from inside the process (app.locals.labDependency.outage()), never by a request.
+ */
+const L9_OUTAGE_MS = 600
+const L9_CALL_MS = 2
+
+function createDependency () {
+  let down = false
+  let waiting = []
+  return {
+    outage () {
+      if (down) return
+      down = true
+      setTimeout(() => {
+        down = false
+        const queued = waiting
+        waiting = []
+        for (const answer of queued) answer()
+      }, L9_OUTAGE_MS)
+    },
+    get () {
+      return new Promise((resolve) => {
+        const answer = () => setTimeout(() => resolve('synthetic value'), L9_CALL_MS)
+        if (down) waiting.push(answer)
+        else answer()
+      })
+    }
+  }
+}
+
 /** L3: bounded synchronous CPU work that blocks the event loop. */
 const CPU_WORK_MS = { short: 20, long: 80 }
 
@@ -175,6 +207,16 @@ function createApp (options = {}) {
     res.json({ scenario: 'L6', ok: true })
   })
 
+  // L9: a read that goes through the stand-in dependency, timed as "cache" in Server-Timing.
+  const dependency = createDependency()
+  app.locals.labDependency = dependency
+  app.get('/lab/l9/read', async (req, res) => {
+    res.serverTiming.start('cache')
+    const value = await dependency.get()
+    res.serverTiming.end('cache')
+    res.json({ scenario: 'L9', value })
+  })
+
   // An application error passed to next(err).
   app.get('/lab/error', (req, res, next) => {
     next(new Error('diagnostic-lab: synthetic failure'))
@@ -208,6 +250,7 @@ if (require.main === module) start()
 
 module.exports = {
   createApp,
+  L9_OUTAGE_MS,
   start,
   HOST,
   WAIT_BEFORE_HEADERS_MS,
