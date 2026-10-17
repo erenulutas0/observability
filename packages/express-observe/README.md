@@ -279,6 +279,7 @@ The numbers above are illustrative. Options:
 |---|---|
 | `--by method-route\|route\|service\|release` | Grouping (default `method-route`) |
 | `--by field:<name>` | Split each `METHOD route` by a field you add with `log.extend` (see below) |
+| `--only-with-field` | With `--by field:<name>`, leave out records that do not have the field |
 | `--sort count\|p95\|p99\|errors\|interrupted` | Order of groups (default `count`) |
 | `--top N` | Number of groups shown, `0` for all (default 20) |
 | `--since`, `--until` | ISO 8601 time window |
@@ -299,7 +300,7 @@ app.use(observe({
 npx express-observe analyze --by field:pageBucket access.log
 ```
 
-Each group is then `GET /feed  pageBucket=11-100` and so on. Records without the field show as `pageBucket=(not set)`.
+Each group is then `GET /feed  pageBucket=11-100` and so on. Records without the field show as `pageBucket=(not set)`; add `--only-with-field` to leave them out, and the report says how many it left out.
 
 - Core record fields cannot be used this way.
 - At most 50 distinct values are kept; the rest are grouped as `(other values)`, with a note that the field looks like an ID.

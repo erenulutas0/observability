@@ -43,6 +43,7 @@ Options:
   --by <field>       group by: ${GROUP_BY.join(' | ')} (default method-route),
                      or field:<name> to split each METHOD route by a field added with
                      log.extend (at most ${MAX_FIELD_VALUES} distinct values, the rest are grouped together)
+  --only-with-field  with --by field:<name>, leave out records that do not have the field
   --sort <field>     sort groups by: ${SORT_BY.join(' | ')} (default count)
   --top <n>          show the first n groups, 0 for all (default 20)
   --since <time>     ignore records before this ISO 8601 time
@@ -117,6 +118,7 @@ function parseAnalyzeArgs (argv) {
         since: { type: 'string' },
         until: { type: 'string' },
         slowest: { type: 'string' },
+        'only-with-field': { type: 'boolean' },
         json: { type: 'boolean' },
         help: { type: 'boolean', short: 'h' }
       }
@@ -133,6 +135,8 @@ function parseAnalyzeArgs (argv) {
   } catch (err) {
     throw new UsageError(err.message)
   }
+  const onlyWithField = values['only-with-field'] === true
+  if (onlyWithField && !groupBy.startsWith('field:')) throw new UsageError('--only-with-field needs --by field:<name>')
   const sortBy = values.sort ?? 'count'
   if (!SORT_BY.includes(sortBy)) throw new UsageError(`--sort must be one of ${SORT_BY.join(', ')}`)
   if (positionals.length === 0) throw new UsageError('no input files (use - to read stdin)')
@@ -147,6 +151,7 @@ function parseAnalyzeArgs (argv) {
     json: values.json === true,
     analyzer: {
       groupBy,
+      onlyWithField,
       sortBy,
       top: parseCount(values.top, 'top', 20),
       since,

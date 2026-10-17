@@ -53,7 +53,8 @@ function describeSkipped (skipped) {
     unsupportedSchema: 'unsupported schemaVersion',
     invalid: 'invalid fields',
     outsideWindow: 'outside --since/--until',
-    tooLong: 'longer than 64 KiB'
+    tooLong: 'longer than 64 KiB',
+    withoutField: 'without the --by field'
   }
   return Object.entries(skipped)
     .filter(([, n]) => n > 0)

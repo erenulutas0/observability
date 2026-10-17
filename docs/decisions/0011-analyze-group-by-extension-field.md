@@ -32,3 +32,11 @@ An application can already add a coarse field with `log.extend`, for example `pa
 
 - One more accepted value for `--by`. Existing values behave as before.
 - The README gains a recipe that shows `log.extend` with a bucketed value and `analyze --by field:pageBucket`.
+
+## Addendum (2026-10-17): `--only-with-field`
+
+In the trial on a real application, `--by field:offsetBucket` listed every other route as `offsetBucket=(not set)`, which buried the question being asked.
+
+- `--only-with-field` leaves out records whose field is missing or `null`. It is valid only with `--by field:<name>`; otherwise it is a usage error (exit 2).
+- Records left out are counted as `input.skipped.withoutField`, like the time-window filter, and a note says how many. They are not part of any number in the report.
+- `groupField` gains `onlyWithField`. `input.skipped` gains `withoutField`, which is always present and `0` when unused. Both are additive, so `reportVersion` stays 1.

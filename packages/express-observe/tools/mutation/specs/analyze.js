@@ -20,6 +20,7 @@ module.exports = {
     { name: 'no cap on distinct field values', file: 'src/analyze.js', from: '        if (fieldValues.size >= MAX_FIELD_VALUES) {', to: '        if (false) {' },
     { name: 'core fields accepted for field grouping', file: 'src/analyze.js', from: '    if (CORE_FIELDS.includes(name)) throw', to: '    if (false) throw' },
     { name: 'inherited properties read as field values', file: 'src/analyze.js', from: 'Object.hasOwn(record, fieldName) ? record[fieldName] : undefined', to: 'record[fieldName]' },
+    { name: 'records without the field kept with --only-with-field', file: 'src/analyze.js', from: '    if (onlyWithField && (!Object.hasOwn(record, fieldName)', to: '    if (false && (!Object.hasOwn(record, fieldName)' },
     { name: 'field grouping mixes routes', file: 'src/analyze.js', from: '  if (fieldPart !== null) return `${record.method} ${record.route ?? UNKNOWN_ROUTE}  ${fieldPart}`', to: '  if (fieldPart !== null) return fieldPart' }
   ]
 }
