@@ -151,6 +151,13 @@ Review of the project summary from a separate session; evidence table in docs/re
 - [x] Published to https://github.com/erenulutas0/observability (main) — 2026-10-14
 - [x] Merged feature branches deleted locally and on GitHub — 2026-10-14
 
+## Follow-ups from a dependency-outage experiment (2026-10-17)
+
+A separate, private database lab (not part of this repository) showed two blind spots: a dependency that hangs, and cost that grows with page depth, which is invisible because query strings are not logged.
+
+- [x] diagnostic-lab L9: a stand-in dependency is unavailable for 600 ms. Checks: time before headers, the app's own `cache` Server-Timing entry, low `eventLoopDelayMs`, `inFlight` rising by 4 and returning, an `interrupted` record for the client that gave up. Disabling the outage makes 4 checks fail. The lab runner now exits instead of hanging when a scenario throws — 2026-10-17
+- [ ] analyze: group by a low-cardinality field added with `log.extend` (ADR needed)
+
 ## Later (not scheduled)
 
 - [ ] Re-run the benchmark on a quiet machine (no VM or Docker) and, if possible, on Linux, to narrow the ranges

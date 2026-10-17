@@ -9,7 +9,7 @@
 
 const http = require('node:http')
 const net = require('node:net')
-const { createApp, HOST, WAIT_BEFORE_HEADERS_MS, SLOW_BODY, L7_RESPONSE_AFTER_MS, SLOW_SINK_MS, CPU_WORK_MS, LARGE_ITEM_COUNT, burnCpu } = require('./app')
+const { createApp, HOST, WAIT_BEFORE_HEADERS_MS, SLOW_BODY, L7_RESPONSE_AFTER_MS, SLOW_SINK_MS, CPU_WORK_MS, LARGE_ITEM_COUNT, L9_OUTAGE_MS, burnCpu } = require('./app')
 
 const fs = require('node:fs')
 const { getDiagnostics } = require('express-observe')
@@ -377,6 +377,56 @@ const COMPOSITE_SCENARIOS = [
         ]
       }
     }
+  },
+  {
+    id: 'L9',
+    title: `a dependency is unavailable for ${L9_OUTAGE_MS} ms; requests wait for it, one client gives up`,
+    async run ({ port, findRecord, app, records }) {
+      const cacheMs = (headers) => {
+        const m = /(?:^|,\s*)cache;dur=([\d.]+)/.exec(headers['server-timing'] ?? '')
+        return m ? Number(m[1]) : null
+      }
+      // L5 blocks this process's event loop just before; let eventLoopDelayMs's look-back window move past it.
+      await sleep(100)
+      const before = await fetchOnce(port, '/lab/l9/read')
+      const beforeRecord = await findRecord(before.headers['x-request-id'])
+      const inFlightBefore = getDiagnostics().requests.inFlight
+
+      app.locals.labDependency.outage()
+      const waiting = [0, 1, 2].map(() => fetchOnce(port, '/lab/l9/read'))
+      const gaveUp = disconnectBeforeHeaders(port, '/lab/l9/read', L9_OUTAGE_MS / 3)
+      await sleep(L9_OUTAGE_MS / 6)
+      const inFlightDuring = getDiagnostics().requests.inFlight
+      const attempts = await Promise.all(waiting)
+      await gaveUp
+      const rs = await Promise.all(attempts.map((a) => findRecord(a.headers['x-request-id'])))
+      const abandoned = await waitFor(() => records.find((r) => r.route === '/lab/l9/read' && r.termination === 'interrupted'))
+      const inFlightAfter = (await waitFor(() => (getDiagnostics().requests.inFlight === inFlightBefore ? inFlightBefore : undefined))) ?? getDiagnostics().requests.inFlight
+      const waited = rs.filter(Boolean)
+
+      return {
+        lines: [
+          `client   before the outage: ${before.status} in ${round1(before.clientAttemptMs)} ms; during it: ${attempts.map((a) => `${a.status} in ${round1(a.clientAttemptMs)} ms`).join(', ')}; one more client gave up after ${L9_OUTAGE_MS / 3} ms`,
+          `record   before  ${JSON.stringify(pick(beforeRecord))}`,
+          `record   waited  ${JSON.stringify(pick(rs[0]))}, Server-Timing cache ${cacheMs(attempts[0].headers)} ms`,
+          `record   gave up ${JSON.stringify(pick(abandoned))}`,
+          `counters getDiagnostics().requests.inFlight: ${inFlightBefore} before, ${inFlightDuring} during the outage, ${inFlightAfter} after`,
+          `reading  waited: ${rs[0] ? interpret(rs[0]).join('; ') : '-'}`,
+          `reading  gave up: ${abandoned ? interpret(abandoned).join('; ') : '-'}`,
+          'actually a dependency the handler awaits was unavailable. The time is in headerDurationMs; the Server-Timing "cache" entry names it only because the application times that call itself; eventLoopDelayMs stays low because the process was idle, not blocked; inFlight showed the requests piling up while it lasted. A client that gives up first leaves an interrupted record with no status.'
+        ],
+        failures: [
+          is(beforeRecord && beforeRecord.durationMs < 50, 'the read is fast before the outage'),
+          is(inFlightDuring - inFlightBefore >= 4, 'getDiagnostics() shows the waiting requests in flight'),
+          is(waited.length === 3 && waited.every((r) => r.termination === 'finished' && r.status === 200 && r.durationMs >= L9_OUTAGE_MS * 0.6), 'waiting requests finish after the outage'),
+          is(waited.every((r) => r.headerDurationMs !== null && r.headerDurationMs >= 0.9 * r.durationMs), 'the wait happens before headers'),
+          is(attempts.every((a) => cacheMs(a.headers) !== null && cacheMs(a.headers) >= L9_OUTAGE_MS * 0.6), 'Server-Timing cache entry carries the wait'),
+          is(waited.every((r) => typeof r.eventLoopDelayMs === 'number' && r.eventLoopDelayMs < 50), 'the event loop was not blocked'),
+          is(abandoned && abandoned.status === null && abandoned.headerDurationMs === null, 'the client that gave up is logged as interrupted with no status'),
+          is(inFlightAfter === inFlightBefore, 'the in-flight count returns to where it was')
+        ]
+      }
+    }
   }
 ]
 
@@ -416,6 +466,7 @@ function printScenario (scenario, result, record, failure, failures) {
 }
 
 function pick (record) {
+  if (!record) return null
   const { route, status, headerDurationMs, durationMs, eventLoopDelayMs, termination } = record
   return eventLoopDelayMs === undefined
     ? { route, status, headerDurationMs, durationMs, termination }
@@ -465,7 +516,7 @@ async function main () {
 
   const findRecord = (requestId) => waitFor(() => records.find((r) => r.requestId === requestId))
   for (const scenario of COMPOSITE_SCENARIOS) {
-    const { lines, failures: checks } = await scenario.run({ port, findRecord })
+    const { lines, failures: checks } = await scenario.run({ port, findRecord, app, records })
     const failures = checks.filter(Boolean)
     if (failures.length > 0) failed++
     const out = [`\n${scenario.id.padEnd(4)} ${scenario.title}`, ...lines.map((l) => `  ${l}`)]
@@ -515,5 +566,6 @@ async function main () {
 
 main().catch((err) => {
   process.stderr.write(`diagnostic-lab failed: ${err && err.stack}\n`)
-  process.exitCode = 1
+  // The in-process server would keep the process alive, and a CI job waiting until its timeout.
+  process.exit(1)
 })
