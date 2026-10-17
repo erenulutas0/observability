@@ -1,0 +1,170 @@
+{
+  "environment": {
+    "date": "2026-10-17T15:35:35.811Z",
+    "nodeVersion": "v22.23.2",
+    "expressVersion": "4.22.3",
+    "expressObserveVersion": "0.1.0-dev.0",
+    "autocannonVersion": "8.0.0",
+    "pinoHttpVersion": "11.0.0",
+    "pinoVersion": "10.4.0",
+    "os": "Linux 6.6.87.2-microsoft-standard-WSL2 (linux x64)",
+    "osVersion": "#1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i5-12500",
+    "logicalCpus": 12,
+    "totalMemGb": 31.2,
+    "powerPlan": null,
+    "sourceCommit": "uncommitted working tree",
+    "workingTreeDirty": false
+  },
+  "config": {
+    "handler": "work",
+    "durationSec": 30,
+    "warmupSec": 10,
+    "connections": 50,
+    "rounds": 5,
+    "pipelining": 1,
+    "variants": [
+      "baseline",
+      "ids-timing",
+      "full-log",
+      "pino-http"
+    ],
+    "out": "/repo/bench/results"
+  },
+  "variant": "pino-http",
+  "round": 1,
+  "startedAt": "2026-10-17T15:37:48.949Z",
+  "finishedAt": "2026-10-17T15:38:18.953Z",
+  "problems": [],
+  "smoke": {
+    "status": 200,
+    "xRequestId": true,
+    "serverTiming": false
+  },
+  "fromResponseEvents": {
+    "samples": 52626,
+    "latencyMs": {
+      "p50": 25.15,
+      "p90": 40.34,
+      "p95": 49.46,
+      "p99": 65.97,
+      "p99_9": 87.75,
+      "max": 464.02
+    }
+  },
+  "throughput": {
+    "requestsPerSecMean": 1754.34,
+    "requestsTotal": 52626
+  },
+  "server": {
+    "type": "stats",
+    "requestsTotal": 69955,
+    "requestsMeasured": 52676,
+    "cpuUserMs": 28593.829,
+    "cpuSystemMs": 2504.689,
+    "rssBytes": 149127168,
+    "maxRssKb": 146112,
+    "cpuMsPer1kRequests": 590.37,
+    "maxRssMb": 142.69
+  },
+  "log": {
+    "bytes": 11822403,
+    "lines": 69955,
+    "bytesPerLine": 169
+  },
+  "autocannon": {
+    "url": "http://127.0.0.1:39341/users/42",
+    "connections": 50,
+    "sampleInt": 1000,
+    "pipelining": 1,
+    "duration": 30,
+    "samples": 30,
+    "start": "2026-10-17T15:37:48.949Z",
+    "finish": "2026-10-17T15:38:18.953Z",
+    "errors": 0,
+    "timeouts": 0,
+    "mismatches": 0,
+    "non2xx": 0,
+    "resets": 0,
+    "1xx": 0,
+    "2xx": 52626,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "statusCodeStats": {
+      "200": {
+        "count": 52626
+      }
+    },
+    "latency": {
+      "average": 27.99,
+      "mean": 27.99,
+      "stddev": 10.52,
+      "min": 1,
+      "max": 464,
+      "p0_001": 1,
+      "p0_01": 11,
+      "p0_1": 17,
+      "p1": 19,
+      "p2_5": 19,
+      "p10": 20,
+      "p25": 22,
+      "p50": 25,
+      "p75": 30,
+      "p90": 40,
+      "p97_5": 56,
+      "p99": 65,
+      "p99_9": 87,
+      "p99_99": 280,
+      "p99_999": 464,
+      "totalCount": 52626
+    },
+    "requests": {
+      "average": 1754.34,
+      "mean": 1754.34,
+      "stddev": 301.96,
+      "min": 1068,
+      "max": 2199,
+      "total": 52626,
+      "p0_001": 1068,
+      "p0_01": 1068,
+      "p0_1": 1068,
+      "p1": 1068,
+      "p2_5": 1068,
+      "p10": 1361,
+      "p25": 1567,
+      "p50": 1701,
+      "p75": 2028,
+      "p90": 2121,
+      "p97_5": 2199,
+      "p99": 2199,
+      "p99_9": 2199,
+      "p99_99": 2199,
+      "p99_999": 2199,
+      "sent": 52676
+    },
+    "throughput": {
+      "average": 5221990.41,
+      "mean": 5221990.41,
+      "stddev": 898496.59,
+      "min": 3179436,
+      "max": 6546423,
+      "total": 156667602,
+      "p0_001": 3180543,
+      "p0_01": 3180543,
+      "p0_1": 3180543,
+      "p1": 3180543,
+      "p2_5": 3180543,
+      "p10": 4052991,
+      "p25": 4665343,
+      "p50": 5066751,
+      "p75": 6037503,
+      "p90": 6316031,
+      "p97_5": 6549503,
+      "p99": 6549503,
+      "p99_9": 6549503,
+      "p99_99": 6549503,
+      "p99_999": 6549503
+    }
+  }
+}

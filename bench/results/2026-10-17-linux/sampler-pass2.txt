@@ -1,0 +1,45 @@
+== environment
+v22.23.2
+Linux 6.6.87.2-microsoft-standard-WSL2
+12
+model name	: 12th Gen Intel(R) Core(TM) i5-12500
+npm ci ok
+== tests
+Tests:       4 skipped, 264 passed, 268 total
+Tests:       4 skipped, 264 passed, 268 total
+Tests:       16 passed, 16 total
+== lab
+check: counters agree with the records
+check: all scenarios behaved as expected
+== idle, 30 s after 12 s of silence
+idleStopMs 0    : 216 ms CPU in 30 s idle = 0.72% of one core
+idleStopMs 10000: 1 ms CPU in 30 s idle = 0.00% of one core
+idleStopMs 0    : 208 ms CPU in 30 s idle = 0.69% of one core
+idleStopMs 10000: 1 ms CPU in 30 s idle = 0.00% of one core
+== light load 100 req/s (20 s each)
+off 20 ms, 100 req/s for 20 s: 3224 ms CPU = 16.12% of one core, 1641 µs per request
+on  20 ms, 100 req/s for 20 s: 3697 ms CPU = 18.48% of one core, 1886 µs per request
+off 20 ms, 100 req/s for 20 s: 3747 ms CPU = 18.73% of one core, 1914 µs per request
+on  20 ms, 100 req/s for 20 s: 3848 ms CPU = 19.24% of one core, 1964 µs per request
+off 20 ms, 100 req/s for 20 s: 3712 ms CPU = 18.56% of one core, 1896 µs per request
+on  20 ms, 100 req/s for 20 s: 4344 ms CPU = 21.72% of one core, 2222 µs per request
+== bench tiny
+- The handler does almost nothing, so middleware cost is a large share of each request. In a real application the relative overhead is smaller; the absolute cost per request is the more transferable number.
+- The pino-http variant is configured to be comparable, not identical: it has no Server-Timing and no route templates, and it uses its own serializers.
+- Background activity on the machine was not controlled. The min–max ranges show run-to-run spread.
+== bench work
+- The handler does a fixed amount of synchronous CPU work (about 0.27 ms) and returns about 3 KB of JSON. Real handlers also wait on I/O, which costs no CPU but holds connections; this handler does not model that.
+- The pino-http variant is configured to be comparable, not identical: it has no Server-Timing and no route templates, and it uses its own serializers.
+- Background activity on the machine was not controlled. The min–max ranges show run-to-run spread.
+2026-10-14-073334
+2026-10-15-072654
+2026-10-15-074040-invalid-timer-granularity
+2026-10-15-075512
+2026-10-17-152156
+2026-10-17-153535
+MANIFEST_TEMPLATE.md
+ab-2026-10-14-132335
+ab-2026-10-14-135053
+ab-2026-10-14-140912
+micro-2026-10-14
+micro-2026-10-15

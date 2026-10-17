@@ -50,3 +50,18 @@ The Consequences above said "one extra timer callback every `resolutionMs`". [A 
 - **Under load:** the CPU profiles showed about 7.5 s more "(program)" time per six-minute replay. It disappeared when only `eventLoop` was disabled.
 
 The cost depends on time, not on the number of requests. The README now states it. Changing the default resolution, or switching to `monitorEventLoopDelay`, is a separate decision and needs a detection-quality check: L3's 80 ms block must still be seen.
+
+## Addendum (2026-10-17, later): pause when idle; default resolution unchanged
+
+The trial proposed raising the default resolution from 20 ms to 100 ms. Measurements argued against it, and the owner asked for the follow-ups to be done.
+
+- **Resolution trades accuracy, not just cost.** A block is reported as at least its length minus one resolution, and a block shorter than the resolution can fall between two ticks and be missed. At 100 ms, an 80 ms block like diagnostic-lab L3 would be missed about one time in five, and under-reported the rest of the time. So the default stays 20 ms.
+- **The cost is mostly idle wake-ups.** In a Linux container on the same hardware, a process with the sampler on and no traffic used about 0.85% of one core; a bare 20 ms `setInterval` used the same. Under light load (100 req/s) it was about 1.5–2.5% of one core on Windows. On Linux two passes disagreed, between nothing and about 3% ([Linux results](../../bench/results/2026-10-17-linux/README.md)).
+- **Decision.** New option `eventLoop.idleStopMs`, default 10,000.
+  - The timer stops when no request is in flight and none has started for that long.
+  - The next request restarts it with an empty buffer and reports `null`, the existing "no measurement" value.
+  - `0` restores the old behaviour.
+  - Requests are counted in and out, so a long request keeps the sampler running and a block during it is still measured.
+- **Effect.** Idle CPU went from 0.36% to 0.00% of one core on Windows in a 30-second idle window after 12 s of silence.
+- **Not seen.** A block that happens while the sampler is paused. The first request afterwards reports `null` rather than the block. This is documented.
+- **Tests.** Stop and restart with `null` then a number; a long request keeps it running; `0` never stops; validation. Four new mutations, all caught.

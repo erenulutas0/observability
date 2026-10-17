@@ -135,7 +135,8 @@ describe('analyze: input handling', () => {
       unsupportedSchema: 1,
       invalid: 4,
       outsideWindow: 0,
-      tooLong: 1
+      tooLong: 1,
+      withoutField: 0
     })
     expect(report.input.linesRead).toBe(11)
   })
@@ -346,7 +347,7 @@ describe('analyze: --by field:<name> (ADR-0011)', () => {
     ]
     const report = json(['analyze', '--by', 'field:pageBucket', writeLog(lines)])
     expect(report.groupBy).toBe('field:pageBucket')
-    expect(report.groupField).toEqual({ name: 'pageBucket', distinctValues: 2, capped: false, missing: 1 })
+    expect(report.groupField).toEqual({ name: 'pageBucket', distinctValues: 2, capped: false, missing: 1, onlyWithField: false })
     expect(group(report, 'GET /feed  pageBucket=1').durationMs).toMatchObject({ n: 20, p95: 10 })
     expect(group(report, 'GET /feed  pageBucket=>100').durationMs).toMatchObject({ n: 20, p95: 400 })
     expect(group(report, 'GET /users/:id  pageBucket=(not set)').count).toBe(1)
@@ -357,6 +358,32 @@ describe('analyze: --by field:<name> (ADR-0011)', () => {
     expect(status).toBe(0)
     expect(stdout).toMatch(/^METHOD-ROUTE \/ pageBucket\s+COUNT/m)
     expect(stdout).toMatch(/GET \/feed {2}pageBucket=>100\s+20/)
+  })
+
+  test('--only-with-field leaves out records without the field and says so', () => {
+    const lines = [
+      ...Array.from({ length: 3 }, () => feed('1', 10)),
+      feed('>100', 400),
+      rec({ route: '/users/:id' }),
+      rec({ route: '/users/:id', pageBucket: null })
+    ]
+    const report = json(['analyze', '--by', 'field:pageBucket', '--only-with-field', writeLog(lines)])
+    expect(report.groups.map((g) => g.key).sort()).toEqual(['GET /feed  pageBucket=1', 'GET /feed  pageBucket=>100'])
+    expect(report.totals.count).toBe(4)
+    expect(report.input).toMatchObject({ records: 4, skippedTotal: 2 })
+    expect(report.input.skipped.withoutField).toBe(2)
+    expect(report.groupField).toEqual({ name: 'pageBucket', distinctValues: 2, capped: false, missing: 0, onlyWithField: true })
+    expect(report.notes).toContain('2 record(s) without "pageBucket" were left out (--only-with-field); they are not part of any number above.')
+
+    const { stdout } = cli(['analyze', '--by', 'field:pageBucket', '--only-with-field', writeLog(lines)])
+    expect(stdout).toMatch(/skipped 2: 2 without the --by field/)
+    expect(stdout).not.toMatch(/(not set)/)
+  })
+
+  test('--only-with-field without --by field:<name> is a usage error', () => {
+    const { status, stderr } = cli(['analyze', '--only-with-field', writeLog([rec()])])
+    expect(status).toBe(2)
+    expect(stderr).toMatch(/--only-with-field needs --by field:<name>/)
   })
 
   test('without field grouping the report has groupField: null and is otherwise unchanged', () => {

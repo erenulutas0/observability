@@ -141,6 +141,7 @@ observe({
   eventLoop: {
     enabled: false,               // adds eventLoopDelayMs to every record
     resolutionMs: 20,             // sampling interval, 5 to 1000
+    idleStopMs: 10000,            // pause sampling after this long without traffic; 0 never pauses
   },
 })
 ```
@@ -196,6 +197,16 @@ app.use(observe({ route: { mounts: ['/api', '/users/:userId/posts'] } }))
 - RegExp routes, array routes and responses sent by plain middleware get `null` unless you label them.
 - Labels must be printable ASCII and at most 256 characters; anything else is ignored.
 
+**Static files.** `express.static` is plain middleware, so the files it serves get `route: null`. In a trial on a real application that was 54% of all records. Label them in its `setHeaders` hook:
+
+```js
+app.use('/assets', express.static(dir, {
+  setHeaders: (res) => { res.locals.observeRoute = '/assets/*' },
+}))
+```
+
+`setHeaders` runs only when a file is actually served, including `304 Not Modified` responses. A request for a missing file is not labelled and falls through to the next handler. Do not set the label in a separate middleware in front of `express.static`; that would label every request passing through, including 404s.
+
 ### Sinks
 
 The sink receives the record as an **object**. Serialization is the sink's job, which lets an existing logger keep its own format:
@@ -229,7 +240,12 @@ app.use(observe({ eventLoop: { enabled: true } }))
 - Timer granularity limits it: on Windows timers are coarse (about 15 ms), so values under about 20 ms carry no information there.
 - `analyze` shows a `LOOP MAX MS` column and a note when records carry the field.
 - **Cost per request:** a scan of a few samples.
-- **Cost over time:** a timer that wakes the process every `resolutionMs`, whether or not there is traffic. On a Windows 11 desktop an otherwise idle process used about 0.75% of one core at the default 20 ms resolution and about 0.2% at 100 ms. Under load in [a trial on a real application](../../docs/trials/2026-10-17-conduit-nasa.md) the cost was larger. Linux has not been measured. Raise `resolutionMs` if that matters more to you than catching short blocks.
+- **Cost over time:** a timer wakes the process every `resolutionMs` while there is traffic.
+  - Waking every 20 ms costs about 0.8% of one core on both Windows 11 and Linux, even with nothing else to do.
+  - Under light load (100 req/s) it was about 1.5–2.5% of one core on Windows. On Linux two passes disagreed, between nothing and about 3%.
+  - Measurements: [trial](../../docs/trials/2026-10-17-conduit-nasa.md) and [Linux and Windows](../../bench/results/2026-10-17-linux/README.md).
+- **Pause when idle:** when no request is in flight and none has started for `idleStopMs` (default 10 s), the timer stops, and an idle process then spends no CPU on it. The next request restarts it with an empty buffer, so that request reports `null`, like the first request after start-up. A block that happens while the sampler is paused is not seen. Set `idleStopMs: 0` to keep it running.
+- **Resolution:** a block is reported as at least its length minus one `resolutionMs`, and a block shorter than `resolutionMs` can be missed. Raising the resolution lowers the cost and loses short blocks.
 
 ### Adding fields
 
@@ -263,6 +279,7 @@ The numbers above are illustrative. Options:
 |---|---|
 | `--by method-route\|route\|service\|release` | Grouping (default `method-route`) |
 | `--by field:<name>` | Split each `METHOD route` by a field you add with `log.extend` (see below) |
+| `--only-with-field` | With `--by field:<name>`, leave out records that do not have the field |
 | `--sort count\|p95\|p99\|errors\|interrupted` | Order of groups (default `count`) |
 | `--top N` | Number of groups shown, `0` for all (default 20) |
 | `--since`, `--until` | ISO 8601 time window |
@@ -283,7 +300,7 @@ app.use(observe({
 npx express-observe analyze --by field:pageBucket access.log
 ```
 
-Each group is then `GET /feed  pageBucket=11-100` and so on. Records without the field show as `pageBucket=(not set)`.
+Each group is then `GET /feed  pageBucket=11-100` and so on. Records without the field show as `pageBucket=(not set)`; add `--only-with-field` to leave them out, and the report says how many it left out.
 
 - Core record fields cannot be used this way.
 - At most 50 distinct values are kept; the rest are grouped as `(other values)`, with a note that the field looks like an ID.
@@ -322,7 +339,7 @@ express-observe doctor: http://127.0.0.1:3000 (6 GET requests, log: access.log)
 PASS  reachable          6 of 6 probes answered
 FAIL  request-id-header  missing or invalid on some responses
                          - GET /health: no X-Request-Id. observe() does not run for this path, or a middleware registered before it answered.
-PASS  request-id-unique  5 distinct ID(s)
+PASS  request-id-unique  5 distinct ID(s); the client-ID probe is excluded
 INFO  client-id-policy   not accepted: the server generated its own ID (the default)
 PASS  server-timing      well-formed with an app entry on 6 response(s)
 PASS  not-found-path     answered 404 with X-Request-Id
@@ -436,6 +453,8 @@ The middleware costs CPU time on every request. Measured on 2026-10-15 on a Wind
 - **The absolute cost is what carries over.** With everything on, the middleware added about 80 µs per request with both handlers. How large that is relative to a request depends on how much your handler already costs.
 - **pino-http is not a like-for-like comparison.** It adds no `Server-Timing` and no route templates. With the tiny handler it cost less than this package; with the work handler, more. The work-handler runs were noisy: the baseline's throughput ranged from 1,294 to 2,299 requests per second. So the ordering between the two is not settled by these runs.
 - **Latency on a saturated machine.** p99 rose more than CPU, because client and server shared one machine at full load. Treat those percentiles as a stress signal, not as what users would see.
+
+On Linux, in a VM on the same machine, everything on added about 103 µs per request with the tiny handler; the work-handler runs there were too noisy to use ([Linux results](../../bench/results/2026-10-17-linux/README.md)).
 
 Raw results, ranges and caveats are in [the tiny-handler run](../../bench/results/2026-10-15-072654/summary.md) and [the work-handler run](../../bench/results/2026-10-15-075512/summary.md). Method is in [bench/](../../bench/README.md); run `npm run bench` (add `--handler=work`) to measure on your own machine. Numbers from one machine and one session describe that machine only.
 

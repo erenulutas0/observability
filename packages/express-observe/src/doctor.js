@@ -307,7 +307,7 @@ function evaluate (options, probes, log) {
     if (seen.has(id)) unique.worse('fail', `${label(seen.get(id))} and ${label(p)} returned the same ID. A cache or another middleware may be replaying responses or headers.`)
     else seen.set(id, p)
   }
-  unique.summary = unique.status === 'pass' ? `${seen.size} distinct ID(s)` : 'IDs repeat across requests'
+  unique.summary = unique.status === 'pass' ? `${seen.size} distinct ID(s); the client-ID probe is excluded` : 'IDs repeat across requests'
   checks.push(unique)
 
   // client-id-policy (information only)
@@ -490,7 +490,10 @@ function renderDoctorText (report) {
   const width = Math.max(...report.checks.map((c) => c.id.length))
   for (const c of report.checks) {
     out.push(`${c.status.toUpperCase().padEnd(4)}  ${c.id.padEnd(width)}  ${safe(c.summary)}`)
-    for (const d of c.details) out.push(`${' '.repeat(width + 8)}- ${safe(d)}`)
+    // Each path is probed more than once, so the same detail can repeat; print it once with a count. JSON keeps all.
+    const counts = new Map()
+    for (const d of c.details) counts.set(d, (counts.get(d) ?? 0) + 1)
+    for (const [d, n] of counts) out.push(`${' '.repeat(width + 8)}- ${safe(d)}${n > 1 ? ` (${n} times)` : ''}`)
   }
   out.push('')
   out.push(`Result: ${report.failures} failure(s), ${report.warnings} warning(s).`)

@@ -189,6 +189,8 @@ function createAnalyzer (options = {}) {
   const until = options.until ?? null
   const slowestLimit = Math.min(options.slowest ?? 0, MAX_SLOWEST)
   const fieldName = parseGroupBy(groupBy)
+  const onlyWithField = options.onlyWithField === true
+  if (onlyWithField && fieldName === null) throw new TypeError('onlyWithField needs groupBy field:<name>')
   const fieldValues = new Set()
   let fieldCapped = false
   let fieldMissing = 0
@@ -216,7 +218,7 @@ function createAnalyzer (options = {}) {
     return `${fieldName}=${text}`
   }
 
-  const skipped = { notJson: 0, notRecord: 0, unsupportedSchema: 0, invalid: 0, outsideWindow: 0, tooLong: 0 }
+  const skipped = { notJson: 0, notRecord: 0, unsupportedSchema: 0, invalid: 0, outsideWindow: 0, tooLong: 0, withoutField: 0 }
   const groups = new Map()
   const totals = newGroup('(all)')
   const services = new Set()
@@ -279,6 +281,10 @@ function createAnalyzer (options = {}) {
       skipped.outsideWindow++
       return
     }
+    if (onlyWithField && (!Object.hasOwn(record, fieldName) || record[fieldName] === null || record[fieldName] === undefined)) {
+      skipped.withoutField++
+      return
+    }
 
     if (first === null || t < first) first = t
     if (last === null || t > last) last = t
@@ -324,13 +330,13 @@ function createAnalyzer (options = {}) {
       services: [...services].sort(nullsLast),
       releases: [...releases].sort(nullsLast),
       groupBy,
-      groupField: fieldName === null ? null : { name: fieldName, distinctValues: fieldValues.size, capped: fieldCapped, missing: fieldMissing },
+      groupField: fieldName === null ? null : { name: fieldName, distinctValues: fieldValues.size, capped: fieldCapped, missing: fieldMissing, onlyWithField },
       sortBy,
       groupsTotal: all.length,
       groups: shown,
       totals: total,
       slowest: slowest.slice(),
-      notes: buildNotes({ all, total, groupBy, services, releases, skipped, shownCount: shown.length, lastLineNotJson, nulLines, field: fieldName === null ? null : { name: fieldName, capped: fieldCapped, missing: fieldMissing } })
+      notes: buildNotes({ all, total, groupBy, services, releases, skipped, shownCount: shown.length, lastLineNotJson, nulLines, field: fieldName === null ? null : { name: fieldName, capped: fieldCapped, missing: fieldMissing, left: skipped.withoutField } })
     }
   }
 
@@ -352,6 +358,7 @@ function buildNotes ({ all, total, groupBy, services, releases, skipped, shownCo
   }
   if (field !== null) {
     notes.push(`Groups are split by "${field.name}", a field the application adds itself with log.extend. Its values are printed as they are in the log; what they contain is the application's responsibility.`)
+    if (field.left > 0) notes.push(`${field.left} record(s) without "${field.name}" were left out (--only-with-field); they are not part of any number above.`)
     if (field.missing > 0) notes.push(`${field.missing} record(s) have no "${field.name}" field and are grouped as ${field.name}=${UNSET}. log.extend may not set it on every route.`)
     if (field.capped) notes.push(`"${field.name}" has more than ${MAX_FIELD_VALUES} distinct values, so it is probably high-cardinality (an ID or a raw number). Values after the first ${MAX_FIELD_VALUES} are grouped as ${field.name}=(other values). Put a coarse bucket in log.extend instead.`)
   }
