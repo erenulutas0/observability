@@ -228,7 +228,8 @@ app.use(observe({ eventLoop: { enabled: true } }))
 - It says the **process** was blocked for about that long around this request. In other words: it is the event-loop delay observed in this time window; it does not prove how long this request itself caused or suffered, and it cannot say which code blocked. It is never added to `durationMs` or subtracted from anything.
 - Timer granularity limits it: on Windows timers are coarse (about 15 ms), so values under about 20 ms carry no information there.
 - `analyze` shows a `LOOP MAX MS` column and a note when records carry the field.
-- Cost: a timer callback every `resolutionMs` and a scan of a few samples per request. A first measurement could not separate it from noise (median +7 µs per request, higher in 7 of 12 rounds, on a noisy machine).
+- **Cost per request:** a scan of a few samples.
+- **Cost over time:** a timer that wakes the process every `resolutionMs`, whether or not there is traffic. On a Windows 11 desktop an otherwise idle process used about 0.75% of one core at the default 20 ms resolution and about 0.2% at 100 ms. Under load in [a trial on a real application](../../docs/trials/2026-10-17-conduit-nasa.md) the cost was larger. Linux has not been measured. Raise `resolutionMs` if that matters more to you than catching short blocks.
 
 ### Adding fields
 

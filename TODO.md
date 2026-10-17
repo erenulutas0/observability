@@ -185,3 +185,16 @@ A separate, private database lab (not part of this repository) showed two blind 
 
 - [x] `--by field:<name>` (ADR-0011): splits each METHOD route by a field added with log.extend. At most 50 values, own properties only, core fields refused. README recipe with a bucketed page number. 11 tests, 4 new mutations all caught — 2026-10-17
 - [x] analyze.js had contained a raw NUL character (the UTF-16 check) since bb931c5, so git treated the file as binary and PR diffs did not show it. Replaced with the `\u0000` escape and updated the mutation spec; no other tracked text file has NUL bytes — 2026-10-17
+
+## Trial on a real application (2026-10-17, docs/trials/2026-10-17-conduit-nasa.md)
+
+- [x] Conduit (Express + Prisma) with express-observe from the tarball, NASA-HTTP July 1995 arrival pattern at 20×, compared with runs without the middleware. Results:
+  - responses unchanged;
+  - counters consistent with the records;
+  - no private values in about 56,000 records;
+  - event-loop blocking from bcryptjs found;
+  - own cost about 115 µs per request — 2026-10-17
+- [ ] Decide: `eventLoop.resolutionMs` default 20 → 100, or `monitorEventLoopDelay`. The sampler costs about 0.75% of one core idle on Windows (ADR-0009 addendum)
+- [ ] README recipe for labelling `express.static` responses (54% of the trial's records were `route: null`)
+- [ ] `analyze --by field:<name>`: option to hide groups without the field
+- [ ] doctor text: print repeated warnings once with a count; explain the request-id-unique count
