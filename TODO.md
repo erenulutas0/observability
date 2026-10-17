@@ -194,7 +194,8 @@ A separate, private database lab (not part of this repository) showed two blind 
   - no private values in about 56,000 records;
   - event-loop blocking from bcryptjs found;
   - own cost about 115 µs per request — 2026-10-17
-- [ ] Decide: `eventLoop.resolutionMs` default 20 → 100, or `monitorEventLoopDelay`. The sampler costs about 0.75% of one core idle on Windows (ADR-0009 addendum)
-- [ ] README recipe for labelling `express.static` responses (54% of the trial's records were `route: null`)
-- [ ] `analyze --by field:<name>`: option to hide groups without the field
-- [ ] doctor text: print repeated warnings once with a count; explain the request-id-unique count
+- [x] Sampler cost: `eventLoop.idleStopMs` (default 10 s) pauses the timer without traffic; idle CPU went from 0.36% to 0.00% of one core. The 20 ms default resolution is kept, because 100 ms would miss short blocks such as L3's 80 ms one about one time in five (ADR-0009 addendum) — 2026-10-17
+- [x] README recipe: label `express.static` responses in `setHeaders`, which covers 200s and 304s but not 404s; tested on Express 4 and 5 — 2026-10-17
+- [x] `analyze --only-with-field`: records without the field are left out and counted in `input.skipped.withoutField` (ADR-0011 addendum) — 2026-10-17
+- [x] doctor text: a repeated detail is printed once with a count (JSON keeps all), and the request-id-unique summary explains the excluded probe — 2026-10-17
+- [x] Linux: the test suite, lab, sampler cost and full benchmark in a Linux container on the same hardware (bench/results/2026-10-17-linux) — 2026-10-17

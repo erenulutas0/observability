@@ -56,7 +56,7 @@ The cost depends on time, not on the number of requests. The README now states i
 The trial proposed raising the default resolution from 20 ms to 100 ms. Measurements argued against it, and the owner asked for the follow-ups to be done.
 
 - **Resolution trades accuracy, not just cost.** A block is reported as at least its length minus one resolution, and a block shorter than the resolution can fall between two ticks and be missed. At 100 ms, an 80 ms block like diagnostic-lab L3 would be missed about one time in five, and under-reported the rest of the time. So the default stays 20 ms.
-- **The cost is mostly idle wake-ups.** In a Linux container on the same hardware, a process with the sampler on and no traffic used about 0.85% of one core; a bare 20 ms `setInterval` used the same. Under light load (100 req/s) there was no measurable difference on Linux. On Windows it was about 1.5–2.5% of one core.
+- **The cost is mostly idle wake-ups.** In a Linux container on the same hardware, a process with the sampler on and no traffic used about 0.85% of one core; a bare 20 ms `setInterval` used the same. Under light load (100 req/s) it was about 1.5–2.5% of one core on Windows. On Linux two passes disagreed, between nothing and about 3% ([Linux results](../../bench/results/2026-10-17-linux/README.md)).
 - **Decision.** New option `eventLoop.idleStopMs`, default 10,000.
   - The timer stops when no request is in flight and none has started for that long.
   - The next request restarts it with an empty buffer and reports `null`, the existing "no measurement" value.

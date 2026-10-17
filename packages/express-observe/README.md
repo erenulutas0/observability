@@ -242,7 +242,7 @@ app.use(observe({ eventLoop: { enabled: true } }))
 - **Cost per request:** a scan of a few samples.
 - **Cost over time:** a timer wakes the process every `resolutionMs` while there is traffic.
   - Waking every 20 ms costs about 0.8% of one core on both Windows 11 and Linux, even with nothing else to do.
-  - Under light load the extra cost was not measurable on Linux. On Windows it was about 1.5–2.5% of one core.
+  - Under light load (100 req/s) it was about 1.5–2.5% of one core on Windows. On Linux two passes disagreed, between nothing and about 3%.
   - Measurements: [trial](../../docs/trials/2026-10-17-conduit-nasa.md) and [Linux and Windows](../../bench/results/2026-10-17-linux/README.md).
 - **Pause when idle:** when no request is in flight and none has started for `idleStopMs` (default 10 s), the timer stops, and an idle process then spends no CPU on it. The next request restarts it with an empty buffer, so that request reports `null`, like the first request after start-up. A block that happens while the sampler is paused is not seen. Set `idleStopMs: 0` to keep it running.
 - **Resolution:** a block is reported as at least its length minus one `resolutionMs`, and a block shorter than `resolutionMs` can be missed. Raising the resolution lowers the cost and loses short blocks.
@@ -453,6 +453,8 @@ The middleware costs CPU time on every request. Measured on 2026-10-15 on a Wind
 - **The absolute cost is what carries over.** With everything on, the middleware added about 80 µs per request with both handlers. How large that is relative to a request depends on how much your handler already costs.
 - **pino-http is not a like-for-like comparison.** It adds no `Server-Timing` and no route templates. With the tiny handler it cost less than this package; with the work handler, more. The work-handler runs were noisy: the baseline's throughput ranged from 1,294 to 2,299 requests per second. So the ordering between the two is not settled by these runs.
 - **Latency on a saturated machine.** p99 rose more than CPU, because client and server shared one machine at full load. Treat those percentiles as a stress signal, not as what users would see.
+
+On Linux, in a VM on the same machine, everything on added about 103 µs per request with the tiny handler; the work-handler runs there were too noisy to use ([Linux results](../../bench/results/2026-10-17-linux/README.md)).
 
 Raw results, ranges and caveats are in [the tiny-handler run](../../bench/results/2026-10-15-072654/summary.md) and [the work-handler run](../../bench/results/2026-10-15-075512/summary.md). Method is in [bench/](../../bench/README.md); run `npm run bench` (add `--handler=work`) to measure on your own machine. Numbers from one machine and one session describe that machine only.
 
