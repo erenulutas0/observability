@@ -41,3 +41,12 @@ An external review of the project summary asked that "no sample" not be reported
 - `schemaVersion` stays 1: the field is opt-in and the only change is that one value can now be `null`, which `analyze` already accepted.
 - Test: "is null, not 0, before the sampler has any measurement" (1 s interval, so no tick can complete during the request). Removing the rule makes it fail.
 - The README now states the method (own interval sampler, not `monitorEventLoopDelay`), the window, the aggregation (maximum), the ring buffer of 256 samples with no reset, and the sentence the review proposed.
+
+## Addendum (2026-10-17): measured cost of the sampler
+
+The Consequences above said "one extra timer callback every `resolutionMs`". [A trial on a real application](../trials/2026-10-17-conduit-nasa.md) measured what that costs on Windows 11:
+
+- **Idle:** about 0.75% of one core at 20 ms and 0.2% at 100 ms. A bare `setInterval` of the same period accounts for most of it, about 0.5%.
+- **Under load:** the CPU profiles showed about 7.5 s more "(program)" time per six-minute replay. It disappeared when only `eventLoop` was disabled.
+
+The cost depends on time, not on the number of requests. The README now states it. Changing the default resolution, or switching to `monitorEventLoopDelay`, is a separate decision and needs a detection-quality check: L3's 80 ms block must still be seen.
