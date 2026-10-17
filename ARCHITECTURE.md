@@ -266,6 +266,11 @@ packages/express-observe/
   - `input.lastLineIncomplete` flags a truncated last line, and `input.suspectUtf16` flags lines with NUL characters.
   - Unsupported schema versions and malformed records get their own notes.
   - All of it is additive, so `reportVersion` stays 1.
+- `--by field:<name>` (ADR-0011, 2026-10-17):
+  - Splits each `METHOD route` group by a top-level field added with `log.extend`. Core fields and invalid names are usage errors.
+  - Missing or `null` values become `(not set)`, objects and arrays `(not a scalar)`, and values are truncated to 64 characters. Own properties only.
+  - At most 50 distinct values; later ones become `(other values)`, with a note.
+  - JSON gains `groupField: { name, distinctValues, capped, missing }`, which is `null` for the other groupings.
 - Report JSON carries `reportVersion: 1`. Exit codes 0 / 1 / 2 as in the ADR.
 
 ## 12. `express-observe doctor` (CLI) **[implemented, ADR-0005]**

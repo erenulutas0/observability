@@ -335,6 +335,116 @@ describe('analyze: data quality and coverage (ADR-0004 addendum)', () => {
   })
 })
 
+describe('analyze: --by field:<name> (ADR-0011)', () => {
+  const feed = (pageBucket, durationMs) => rec({ route: '/feed', pageBucket, durationMs })
+
+  test('splits each METHOD route by the field, and reports the field in JSON and in the table header', () => {
+    const lines = [
+      ...Array.from({ length: 20 }, () => feed('1', 10)),
+      ...Array.from({ length: 20 }, () => feed('>100', 400)),
+      rec({ route: '/users/:id' })
+    ]
+    const report = json(['analyze', '--by', 'field:pageBucket', writeLog(lines)])
+    expect(report.groupBy).toBe('field:pageBucket')
+    expect(report.groupField).toEqual({ name: 'pageBucket', distinctValues: 2, capped: false, missing: 1 })
+    expect(group(report, 'GET /feed  pageBucket=1').durationMs).toMatchObject({ n: 20, p95: 10 })
+    expect(group(report, 'GET /feed  pageBucket=>100').durationMs).toMatchObject({ n: 20, p95: 400 })
+    expect(group(report, 'GET /users/:id  pageBucket=(not set)').count).toBe(1)
+    expect(report.notes).toContain('1 record(s) have no "pageBucket" field and are grouped as pageBucket=(not set). log.extend may not set it on every route.')
+    expect(report.notes.some((n) => n.startsWith('Groups are split by "pageBucket"'))).toBe(true)
+
+    const { status, stdout } = cli(['analyze', '--by', 'field:pageBucket', writeLog(lines)])
+    expect(status).toBe(0)
+    expect(stdout).toMatch(/^METHOD-ROUTE \/ pageBucket\s+COUNT/m)
+    expect(stdout).toMatch(/GET \/feed {2}pageBucket=>100\s+20/)
+  })
+
+  test('without field grouping the report has groupField: null and is otherwise unchanged', () => {
+    const report = json(['analyze', writeLog([feed('1', 10)])])
+    expect(report.groupField).toBeNull()
+    expect(report.groups.map((g) => g.key)).toEqual(['GET /feed'])
+  })
+
+  test('caps the number of distinct values; the rest are grouped together with a note', () => {
+    const lines = Array.from({ length: 60 }, (_, i) => rec({ route: '/feed', page: i + 1 }))
+    const report = json(['analyze', '--by', 'field:page', '--top', '0', writeLog(lines)])
+    expect(report.groupField).toMatchObject({ distinctValues: 50, capped: true })
+    expect(report.groups).toHaveLength(51)
+    expect(group(report, 'GET /feed  page=(other values)').count).toBe(10)
+    expect(report.notes.some((n) => n.startsWith('"page" has more than 50 distinct values, so it is probably high-cardinality'))).toBe(true)
+  })
+
+  test('non-scalar values, long values and inherited property names are handled safely', () => {
+    const lines = [
+      rec({ tag: { nested: true } }),
+      rec({ tag: ['a'] }),
+      rec({ tag: 'x'.repeat(100) }),
+      rec({ tag: true }),
+      rec()
+    ]
+    const report = json(['analyze', '--by', 'field:tag', writeLog(lines)])
+    const keys = report.groups.map((g) => g.key)
+    expect(keys).toContain('GET /users/:id  tag=(not a scalar)')
+    expect(keys).toContain(`GET /users/:id  tag=${'x'.repeat(64)}`)
+    expect(keys).toContain('GET /users/:id  tag=true')
+    expect(group(report, 'GET /users/:id  tag=(not a scalar)').count).toBe(2)
+
+    const inherited = json(['analyze', '--by', 'field:constructor', writeLog([rec()])])
+    expect(inherited.groups.map((g) => g.key)).toEqual(['GET /users/:id  constructor=(not set)'])
+  })
+
+  test.each([
+    ['field:durationMs', /core record field/],
+    ['field:requestId', /core record field/],
+    ['field:', /field name/],
+    ['field:page-bucket', /field name/],
+    ['field:a.b', /field name/],
+    ['pageBucket', /--by must be one of/]
+  ])('--by %s is a usage error (exit 2)', (by, message) => {
+    const { status, stderr } = cli(['analyze', '--by', by, writeLog([rec()])])
+    expect(status).toBe(2)
+    expect(stderr).toMatch(message)
+  })
+
+  test('end to end: log.extend adds a coarse bucket, analyze splits the route by it', async () => {
+    const file = path.join(tmp, `e2e-field-${++fileCounter}.jsonl`)
+    const lines = []
+    const bucket = (page) => (page <= 1 ? '1' : page <= 10 ? '2-10' : '>10')
+    const app = express()
+    app.use(observe({
+      log: {
+        sink: (record) => { lines.push(JSON.stringify(record)) },
+        extend: (req) => (req.path === '/feed' ? { pageBucket: bucket(Number(req.query.page) || 1) } : null)
+      }
+    }))
+    app.get('/feed', (req, res) => res.json({ ok: true }))
+    for (const page of [1, 1, 5, 50]) await request(app).get(`/feed?page=${page}`).expect(200)
+    await waitForLines(lines, 4)
+    fs.writeFileSync(file, lines.join('\n') + '\n')
+
+    const report = json(['analyze', '--by', 'field:pageBucket', file])
+    expect(Object.fromEntries(report.groups.map((g) => [g.key, g.count]))).toEqual({
+      'GET /feed  pageBucket=1': 2,
+      'GET /feed  pageBucket=2-10': 1,
+      'GET /feed  pageBucket=>10': 1
+    })
+    // The page numbers themselves never reach the log, only the bucket.
+    for (const record of lines.map((l) => JSON.parse(l))) {
+      expect(Object.keys(record)).not.toContain('page')
+      expect(Object.values(record)).not.toContain('50')
+      expect(JSON.stringify(record)).not.toContain('page=')
+    }
+  })
+})
+
+async function waitForLines (lines, count, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs
+  while (lines.length < count) {
+    if (Date.now() > deadline) throw new Error(`expected ${count} lines, got ${lines.length}`)
+    await sleep(5)
+  }
+}
+
 describe('analyze: text output', () => {
   test('prints a table with a totals row and notes', () => {
     const lines = Array.from({ length: 25 }, (_, i) => rec({ durationMs: i + 1 }))
