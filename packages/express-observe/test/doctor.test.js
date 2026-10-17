@@ -146,6 +146,29 @@ describe('doctor: detects integration mistakes', () => {
     expect(c.details[0]).toMatch(/route is null.*route\.mounts/)
   })
 
+  test('text output prints a repeated detail once with a count; JSON keeps every occurrence', async () => {
+    const log = fileSink()
+    const app = express()
+    app.use(observe({ log: { sink: log.sink } }))
+    app.use('/api', itemsRouter())
+    const { port, close } = await listen(app)
+    try {
+      const target = `http://127.0.0.1:${port}`
+      const text = await doctorCli([target, '--wait', '50', '--path', '/api/items/7', '--log', log.file])
+      const lines = text.stdout.split('\n').filter((l) => l.includes('GET /api/items/7: answered 200 but the route is null'))
+      expect(text.stdout).toMatch(/request-id-unique\s+\d+ distinct ID\(s\); the client-ID probe is excluded/)
+
+      // Every probe of the path produces the same detail; the first path also gets the client-ID probe.
+      const json = JSON.parse((await doctorCli([target, '--json', '--wait', '50', '--path', '/api/items/7', '--log', log.file])).stdout)
+      const occurrences = checkOf(json, 'route-label').details.filter((d) => d.includes('/api/items/7')).length
+      expect(occurrences).toBeGreaterThan(1)
+      expect(lines).toHaveLength(1)
+      expect(lines[0].endsWith(` (${occurrences} times)`)).toBe(true)
+    } finally {
+      await close()
+    }
+  })
+
   test('log.extend that copies the URL leaks the query marker', async () => {
     const { status, report } = await diagnose((app, log) => {
       app.use(observe({ log: { sink: log.sink, extend: (req) => ({ url: req.originalUrl }) } }))

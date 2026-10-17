@@ -339,7 +339,7 @@ express-observe doctor: http://127.0.0.1:3000 (6 GET requests, log: access.log)
 PASS  reachable          6 of 6 probes answered
 FAIL  request-id-header  missing or invalid on some responses
                          - GET /health: no X-Request-Id. observe() does not run for this path, or a middleware registered before it answered.
-PASS  request-id-unique  5 distinct ID(s)
+PASS  request-id-unique  5 distinct ID(s); the client-ID probe is excluded
 INFO  client-id-policy   not accepted: the server generated its own ID (the default)
 PASS  server-timing      well-formed with an app entry on 6 response(s)
 PASS  not-found-path     answered 404 with X-Request-Id
