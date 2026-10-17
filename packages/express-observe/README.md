@@ -197,6 +197,16 @@ app.use(observe({ route: { mounts: ['/api', '/users/:userId/posts'] } }))
 - RegExp routes, array routes and responses sent by plain middleware get `null` unless you label them.
 - Labels must be printable ASCII and at most 256 characters; anything else is ignored.
 
+**Static files.** `express.static` is plain middleware, so the files it serves get `route: null`. In a trial on a real application that was 54% of all records. Label them in its `setHeaders` hook:
+
+```js
+app.use('/assets', express.static(dir, {
+  setHeaders: (res) => { res.locals.observeRoute = '/assets/*' },
+}))
+```
+
+`setHeaders` runs only when a file is actually served, including `304 Not Modified` responses. A request for a missing file is not labelled and falls through to the next handler. Do not set the label in a separate middleware in front of `express.static`; that would label every request passing through, including 404s.
+
 ### Sinks
 
 The sink receives the record as an **object**. Serialization is the sink's job, which lets an existing logger keep its own format:

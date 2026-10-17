@@ -244,6 +244,39 @@ describe('route templates: route capture does not leak into shared prototypes', 
   })
 })
 
+describe('route templates: static files (README recipe)', () => {
+  const fs = require('node:fs')
+  const os = require('node:os')
+  const path = require('node:path')
+  let dir
+  beforeAll(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'express-observe-static-'))
+    fs.writeFileSync(path.join(dir, 'logo.txt'), 'synthetic file')
+  })
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+  test('express.static setHeaders labels files it serves, including 304s, and nothing it does not serve', async () => {
+    const collector = collectingSink()
+    const app = express()
+    app.use(observe({ log: { sink: collector.sink } }))
+    app.use('/assets', express.static(dir, { setHeaders: (res) => { res.locals.observeRoute = '/assets/*' } }))
+    app.get('/api/items/:id', (req, res) => res.send('ok'))
+
+    const first = await request(app).get('/assets/logo.txt').expect(200)
+    await request(app).get('/assets/logo.txt').set('If-None-Match', first.headers.etag).expect(304)
+    await request(app).get('/assets/missing.txt').expect(404)
+    await request(app).get('/api/items/7').expect(200)
+    const records = await collector.waitFor(4)
+
+    expect(records.map((r) => [r.status, r.route])).toEqual([
+      [200, '/assets/*'],
+      [304, '/assets/*'],
+      [404, null],
+      [200, '/api/items/:id']
+    ])
+  })
+})
+
 describe('route templates: explicit labels', () => {
   test('res.locals.observeRoute overrides automatic detection', async () => {
     const record = await routeFor((app) => {
