@@ -27,7 +27,7 @@ app.use(observe({
     onSinkError: (err, record) => { console.error(record.requestId, err) },
     extend: (_req, res) => ({ tenant: res.locals.tenant as string | undefined })
   },
-  eventLoop: { enabled: true, resolutionMs: 20 }
+  eventLoop: { enabled: true, resolutionMs: 20, idleStopMs: 0 }
 }))
 app.use(observe({ log: { sink: async (record) => { await Promise.resolve(record) } } }))
 

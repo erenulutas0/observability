@@ -30,6 +30,7 @@ const DEFAULT_REQUEST_ID_HEADER = 'X-Request-Id'
 const DEFAULT_MAX_TIMING_ENTRIES = 16
 const MAX_TIMING_ENTRIES_LIMIT = 64
 const DEFAULT_EVENT_LOOP_RESOLUTION_MS = 20
+const DEFAULT_EVENT_LOOP_IDLE_STOP_MS = 10_000
 const MAX_LABEL_LENGTH = 256
 
 /**
@@ -48,7 +49,7 @@ function observe (options) {
     : null
   // Optional event-loop delay (ADR-0009): one unref()ed sampler per middleware instance, started on first use.
   const sampler = config.log.enabled && config.eventLoop.enabled
-    ? createEventLoopSampler({ resolutionMs: config.eventLoop.resolutionMs })
+    ? createEventLoopSampler({ resolutionMs: config.eventLoop.resolutionMs, idleStopMs: config.eventLoop.idleStopMs })
     : null
 
   return function expressObserve (req, res, next) {
@@ -61,14 +62,18 @@ function observe (options) {
       requestId: null,
       requestIdSource: null,
       finished: false,
-      logged: false
+      logged: false,
+      sampling: false
     }
 
     try {
       res[kState] = state
       assignRequestId(req, res, state, config.requestId, warn)
       attachHeaderHook(res, state, config.serverTiming, warn)
-      if (sampler !== null) sampler.start()
+      if (sampler !== null) {
+        sampler.start()
+        state.sampling = true
+      }
     } catch (err) {
       warn('internal error while preparing request; continuing without full observation', err)
     }
@@ -194,6 +199,8 @@ function attachTermination (req, res, state, config, warn, deliver, sampler) {
       counters.dropped++
       warn('failed to build access-log record; record dropped', err)
       return
+    } finally {
+      if (state.sampling) sampler.release()
     }
     deliver(record)
   })
@@ -211,11 +218,15 @@ function normalizeOptions (options) {
   const serverTiming = section(options, 'serverTiming', ['enabled', 'maxEntries'])
   const route = section(options, 'route', ['mounts', 'resolver'])
   const log = section(options, 'log', ['enabled', 'sink', 'onSinkError', 'extend'])
-  const eventLoop = section(options, 'eventLoop', ['enabled', 'resolutionMs'])
+  const eventLoop = section(options, 'eventLoop', ['enabled', 'resolutionMs', 'idleStopMs'])
 
   const resolutionMs = eventLoop.resolutionMs ?? DEFAULT_EVENT_LOOP_RESOLUTION_MS
   if (!Number.isInteger(resolutionMs) || resolutionMs < 5 || resolutionMs > 1000) {
     throw new TypeError('express-observe: options.eventLoop.resolutionMs must be an integer between 5 and 1000')
+  }
+  const idleStopMs = eventLoop.idleStopMs ?? DEFAULT_EVENT_LOOP_IDLE_STOP_MS
+  if (!Number.isInteger(idleStopMs) || (idleStopMs !== 0 && (idleStopMs < 100 || idleStopMs > 3_600_000))) {
+    throw new TypeError('express-observe: options.eventLoop.idleStopMs must be 0 (never stop) or an integer between 100 and 3600000')
   }
 
   const header = requestId.header ?? DEFAULT_REQUEST_ID_HEADER
@@ -252,7 +263,7 @@ function normalizeOptions (options) {
       onExistingId
     },
     serverTiming: { enabled: timingEnabled, maxEntries },
-    eventLoop: { enabled: optionalBoolean(eventLoop.enabled, false, 'options.eventLoop.enabled'), resolutionMs },
+    eventLoop: { enabled: optionalBoolean(eventLoop.enabled, false, 'options.eventLoop.enabled'), resolutionMs, idleStopMs },
     route: {
       mounts: compileMounts(route.mounts),
       resolver: optionalFunction(route.resolver, 'options.route.resolver')

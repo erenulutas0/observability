@@ -26,7 +26,7 @@ packages/express-observe/src/
 ├── server-timing.js   [implemented] per-response timer registry + header serialization (W3C Server-Timing)
 ├── logger.js          [implemented] record builder, opt-in extension, default stdout sink, sink error isolation, rate-limited warnings
 ├── route-template.js  [implemented] route capture at match time, mount template matching, explicit labels
-├── event-loop.js      [implemented] optional event-loop delay sampler (ADR-0009)
+├── event-loop.js      [implemented] optional event-loop delay sampler, paused when idle (ADR-0009)
 └── diagnostics.js     [implemented] process-wide counters behind getDiagnostics() (ADR-0010)
 
 packages/express-observe/index.d.ts   [implemented] hand-written types for the public API (section 6), shipped in the package
@@ -169,7 +169,7 @@ Field rules:
 - `durationMs` = middleware entry -> termination. Time Node spends parsing the request head before Express runs is not included.
 - `service` and `release` come from options; default `null`. No env-var fallback in v0.1.
 - `route` per section 4.3; `null` when unknown.
-- `eventLoopDelayMs` (only with `eventLoop.enabled`, after `durationMs`): the largest event-loop lateness from one sampling interval before middleware entry until the record is built, including the currently overdue tick. `null` while the sampler has no measurement yet. A process-level signal for the wait that happens before `observe()` runs; it does not prove how long the request itself waited (ADR-0009 and its addendum).
+- `eventLoopDelayMs` (only with `eventLoop.enabled`, after `durationMs`): the largest event-loop lateness from one sampling interval before middleware entry until the record is built, including the currently overdue tick. `null` while the sampler has no measurement yet. A process-level signal for the wait that happens before `observe()` runs; it does not prove how long the request itself waited. The sampler pauses after `eventLoop.idleStopMs` without traffic; the next request reports `null` (ADR-0009 and its addenda).
 - The record is built from an explicit field list. Nothing is copied from `req` or `res` wholesale.
 
 Never logged by the middleware: request/response bodies, raw URL and query string, request/response headers, cookies, IP addresses, user identifiers, error messages and stack traces. A sentinel-based test plants each of these in a request and checks stdout and stderr.

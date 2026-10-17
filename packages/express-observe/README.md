@@ -141,6 +141,7 @@ observe({
   eventLoop: {
     enabled: false,               // adds eventLoopDelayMs to every record
     resolutionMs: 20,             // sampling interval, 5 to 1000
+    idleStopMs: 10000,            // pause sampling after this long without traffic; 0 never pauses
   },
 })
 ```
@@ -229,7 +230,12 @@ app.use(observe({ eventLoop: { enabled: true } }))
 - Timer granularity limits it: on Windows timers are coarse (about 15 ms), so values under about 20 ms carry no information there.
 - `analyze` shows a `LOOP MAX MS` column and a note when records carry the field.
 - **Cost per request:** a scan of a few samples.
-- **Cost over time:** a timer that wakes the process every `resolutionMs`, whether or not there is traffic. On a Windows 11 desktop an otherwise idle process used about 0.75% of one core at the default 20 ms resolution and about 0.2% at 100 ms. Under load in [a trial on a real application](../../docs/trials/2026-10-17-conduit-nasa.md) the cost was larger. Linux has not been measured. Raise `resolutionMs` if that matters more to you than catching short blocks.
+- **Cost over time:** a timer wakes the process every `resolutionMs` while there is traffic.
+  - Waking every 20 ms costs about 0.8% of one core on both Windows 11 and Linux, even with nothing else to do.
+  - Under light load the extra cost was not measurable on Linux. On Windows it was about 1.5–2.5% of one core.
+  - Measurements: [trial](../../docs/trials/2026-10-17-conduit-nasa.md) and [Linux and Windows](../../bench/results/2026-10-17-linux/README.md).
+- **Pause when idle:** when no request is in flight and none has started for `idleStopMs` (default 10 s), the timer stops, and an idle process then spends no CPU on it. The next request restarts it with an empty buffer, so that request reports `null`, like the first request after start-up. A block that happens while the sampler is paused is not seen. Set `idleStopMs: 0` to keep it running.
+- **Resolution:** a block is reported as at least its length minus one `resolutionMs`, and a block shorter than `resolutionMs` can be missed. Raising the resolution lowers the cost and loses short blocks.
 
 ### Adding fields
 

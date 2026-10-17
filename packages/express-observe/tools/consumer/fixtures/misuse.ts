@@ -55,3 +55,6 @@ observe.getDiagnostics('/users')
 
 // @ts-expect-error the snapshot has no reset
 observe.getDiagnostics().reset()
+
+// @ts-expect-error idleStopMs is a number of milliseconds
+observe({ eventLoop: { idleStopMs: '10s' } })

@@ -114,8 +114,13 @@ declare namespace observe {
   interface EventLoopOptions {
     /** Adds `eventLoopDelayMs` to every record. Default false. */
     enabled?: boolean
-    /** Sampling interval, 5 to 1000 ms. Default 20. */
+    /** Sampling interval, 5 to 1000 ms. Default 20. A block shorter than this can be missed. */
     resolutionMs?: number
+    /**
+     * Stop sampling after this many ms with no request in flight and none started; the next request restarts it
+     * and reports null. 0 never stops. 100 to 3600000, default 10000.
+     */
+    idleStopMs?: number
   }
 
   interface Options {

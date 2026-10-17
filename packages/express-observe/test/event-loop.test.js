@@ -165,5 +165,51 @@ describe('eventLoopDelayMs (ADR-0009)', () => {
     for (const eventLoop of [{ enabled: 'yes' }, { resolutionMs: 1 }, { resolutionMs: 5000 }, { resolutionMs: 2.5 }, { interval: 10 }]) {
       expect(() => observe({ eventLoop })).toThrow(TypeError)
     }
+    for (const idleStopMs of [-1, 50, 2.5, '1000', 4_000_000]) {
+      expect(() => observe({ eventLoop: { enabled: true, idleStopMs } })).toThrow(/idleStopMs/)
+    }
+    for (const idleStopMs of [0, 100, 10_000, 3_600_000]) {
+      expect(() => observe({ eventLoop: { enabled: true, idleStopMs } })).not.toThrow()
+    }
+  })
+})
+
+describe('eventLoop.idleStopMs: the sampler pauses when there is no traffic (ADR-0009, 2026-10-17 addendum)', () => {
+  test('after idleStopMs without requests it stops; the next request reports null, the one after a number', async () => {
+    const { app, waitFor } = appWith({ eventLoop: { enabled: true, resolutionMs: 20, idleStopMs: 200 } })
+    await request(app).get('/fast')
+    await sleep(100)
+    await request(app).get('/fast') // still within idleStopMs: the sampler kept running
+    await sleep(600) // longer than idleStopMs plus one tick: the sampler has stopped
+    await request(app).get('/fast') // restarts it with an empty buffer
+    await sleep(80)
+    await request(app).get('/fast')
+    const records = await waitFor(4)
+    expect(typeof records[1].eventLoopDelayMs).toBe('number')
+    expect(records[2].eventLoopDelayMs).toBeNull()
+    expect(typeof records[3].eventLoopDelayMs).toBe('number')
+  })
+
+  test('a request in flight keeps it running, so a block during a long request is still measured', async () => {
+    const { app, waitFor } = appWith({ eventLoop: { enabled: true, resolutionMs: 20, idleStopMs: 200 } }, (a) => {
+      a.get('/long', (req, res) => {
+        // No other request starts for 500 ms, far beyond idleStopMs; the block happens at 300 ms.
+        setTimeout(() => burn(BLOCK_MS), 300)
+        setTimeout(() => res.send('done'), 500)
+      })
+    })
+    await request(app).get('/fast')
+    await request(app).get('/long')
+    const records = await waitFor(2)
+    expect(records[1].eventLoopDelayMs).toBeGreaterThanOrEqual(BLOCK_MS / 2)
+  })
+
+  test('idleStopMs: 0 keeps the sampler running between requests', async () => {
+    const { app, waitFor } = appWith({ eventLoop: { enabled: true, resolutionMs: 20, idleStopMs: 0 } })
+    await request(app).get('/fast')
+    await sleep(400)
+    await request(app).get('/fast')
+    const records = await waitFor(2)
+    expect(typeof records[1].eventLoopDelayMs).toBe('number')
   })
 })
