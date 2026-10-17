@@ -81,7 +81,8 @@ function renderText (report, sources) {
 
   // The event-loop column appears only when the records carry eventLoopDelayMs (ADR-0009).
   const withLoop = report.totals.eventLoopDelayMs !== null
-  const headers = [report.groupBy.toUpperCase(), 'COUNT', '5XX', 'INTERRUPTED', 'P50 MS', 'P95 MS', 'P99 MS', 'MAX MS', 'HEADER P95 MS']
+  const groupHeader = report.groupField ? `METHOD-ROUTE / ${safe(report.groupField.name)}` : report.groupBy.toUpperCase()
+  const headers = [groupHeader, 'COUNT', '5XX', 'INTERRUPTED', 'P50 MS', 'P95 MS', 'P99 MS', 'MAX MS', 'HEADER P95 MS']
   if (withLoop) headers.push('LOOP MAX MS')
   const rows = report.groups.map((g) => groupRow(g, withLoop))
   rows.push(groupRow({ ...report.totals, key: 'all requests' }, withLoop))

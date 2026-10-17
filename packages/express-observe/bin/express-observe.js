@@ -12,7 +12,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { parseArgs } = require('node:util')
-const { createAnalyzer, analyzeStream, GROUP_BY, SORT_BY, MAX_SLOWEST, MIN_SAMPLES } = require('../src/analyze')
+const { createAnalyzer, analyzeStream, parseGroupBy, GROUP_BY, SORT_BY, MAX_SLOWEST, MAX_FIELD_VALUES, MIN_SAMPLES } = require('../src/analyze')
 const { renderText } = require('../src/analyze-format')
 const doctor = require('../src/doctor')
 
@@ -40,7 +40,9 @@ Reads JSON-lines access logs written by express-observe (or by a logger that wra
 its records) and prints per-group statistics. Use "-" as a file name to read stdin.
 
 Options:
-  --by <field>       group by: ${GROUP_BY.join(' | ')} (default method-route)
+  --by <field>       group by: ${GROUP_BY.join(' | ')} (default method-route),
+                     or field:<name> to split each METHOD route by a field added with
+                     log.extend (at most ${MAX_FIELD_VALUES} distinct values, the rest are grouped together)
   --sort <field>     sort groups by: ${SORT_BY.join(' | ')} (default count)
   --top <n>          show the first n groups, 0 for all (default 20)
   --since <time>     ignore records before this ISO 8601 time
@@ -126,7 +128,11 @@ function parseAnalyzeArgs (argv) {
   if (values.help) return { help: true }
 
   const groupBy = values.by ?? 'method-route'
-  if (!GROUP_BY.includes(groupBy)) throw new UsageError(`--by must be one of ${GROUP_BY.join(', ')}`)
+  try {
+    parseGroupBy(groupBy)
+  } catch (err) {
+    throw new UsageError(err.message)
+  }
   const sortBy = values.sort ?? 'count'
   if (!SORT_BY.includes(sortBy)) throw new UsageError(`--sort must be one of ${SORT_BY.join(', ')}`)
   if (positionals.length === 0) throw new UsageError('no input files (use - to read stdin)')

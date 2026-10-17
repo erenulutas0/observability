@@ -4,16 +4,20 @@ Run on 2026-10-15, Node v22.23.2, Windows 11, express-observe at branch feat/dia
 
 ## analyze: honesty and data quality
 
-tests: test/analyze.test.js
+tests: test/analyze.test.js (re-run on 2026-10-17, branch feat/analyze-group-by-field, with the field-grouping mutations)
 
 | Mutation | Outcome | Tests |
 |---|---|---|
-| interrupted durations included in latency percentiles | caught | 3 failed, 40 passed, 43 total |
-| p95 shown below the minimum sample count | caught | 1 failed, 42 passed, 43 total |
-| a bad line in the middle reported as a truncated end | caught | 1 failed, 42 passed, 43 total |
-| UTF-16 input not detected | caught | 2 failed, 41 passed, 43 total |
-| coverage note removed | caught | 2 failed, 41 passed, 43 total |
-| unsupported schemaVersion read as version 1 | caught | 2 failed, 41 passed, 43 total |
+| interrupted durations included in latency percentiles | caught | 3 failed, 51 passed, 54 total |
+| p95 shown below the minimum sample count | caught | 1 failed, 53 passed, 54 total |
+| a bad line in the middle reported as a truncated end | caught | 1 failed, 53 passed, 54 total |
+| UTF-16 input not detected | caught | 2 failed, 52 passed, 54 total |
+| coverage note removed | caught | 2 failed, 52 passed, 54 total |
+| unsupported schemaVersion read as version 1 | caught | 2 failed, 52 passed, 54 total |
+| no cap on distinct field values | caught | 1 failed, 53 passed, 54 total |
+| core fields accepted for field grouping | caught | 2 failed, 52 passed, 54 total |
+| inherited properties read as field values | caught | 1 failed, 53 passed, 54 total |
+| field grouping mixes routes | caught | 4 failed, 50 passed, 54 total |
 
 ## diagnostics counters
 

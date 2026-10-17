@@ -261,11 +261,32 @@ The numbers above are illustrative. Options:
 | Option | Meaning |
 |---|---|
 | `--by method-route\|route\|service\|release` | Grouping (default `method-route`) |
+| `--by field:<name>` | Split each `METHOD route` by a field you add with `log.extend` (see below) |
 | `--sort count\|p95\|p99\|errors\|interrupted` | Order of groups (default `count`) |
 | `--top N` | Number of groups shown, `0` for all (default 20) |
 | `--since`, `--until` | ISO 8601 time window |
 | `--slowest N` | Also list the N slowest finished requests with their request IDs, to look them up |
 | `--json` | Machine-readable report |
+
+**Splitting a route by your own field.** Query strings are never logged, so `GET /feed?page=1` and `GET /feed?page=200` land in one group. If cost depends on such a parameter, add a coarse bucket yourself, never the raw value, and group by it:
+
+```js
+const bucket = (page) => (page <= 1 ? '1' : page <= 10 ? '2-10' : page <= 100 ? '11-100' : '>100')
+
+app.use(observe({
+  log: { extend: (req) => (req.path === '/feed' ? { pageBucket: bucket(Number(req.query.page) || 1) } : null) }
+}))
+```
+
+```bash
+npx express-observe analyze --by field:pageBucket access.log
+```
+
+Each group is then `GET /feed  pageBucket=11-100` and so on. Records without the field show as `pageBucket=(not set)`.
+
+- Core record fields cannot be used this way.
+- At most 50 distinct values are kept; the rest are grouped as `(other values)`, with a note that the field looks like an ID.
+- The values are printed as they appear in your log, so keep them coarse and free of personal data.
 
 Use `-` to read stdin, for example `docker logs api | npx express-observe analyze -`. Lines that are not express-observe records are skipped and counted, and records wrapped by another logger such as pino are recognised.
 

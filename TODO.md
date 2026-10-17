@@ -173,3 +173,8 @@ Review of the project summary from a separate session; evidence table in docs/re
 - 2026-10-14 — Express 5 support on feat/express-5: the full suite passes on Express 4.22.3 (208 run, 3 version-skipped) and 5.3.0 (209 run, 2 version-skipped), stable across repeated runs.
 - 2026-10-14 — perf/hot-path and feat/express-5 merged into main. diagnostic-lab second wave on feat/lab-second-wave: L3 shows fast clients waiting about 70 ms for a blocked event loop while their records say about 0.3 ms; stable across repeated runs after synchronising the client worker.
 - 2026-10-14 — lab second wave merged into main. Event-loop delay (ADR-0009) on feat/event-loop-delay: opt-in eventLoopDelayMs closes the L3 blind spot as a process-level signal.
+
+## analyze: grouping by an extension field (branch feat/analyze-group-by-field)
+
+- [x] `--by field:<name>` (ADR-0011): splits each METHOD route by a field added with log.extend. At most 50 values, own properties only, core fields refused. README recipe with a bucketed page number. 11 tests, 4 new mutations all caught — 2026-10-17
+- [x] analyze.js had contained a raw NUL character (the UTF-16 check) since bb931c5, so git treated the file as binary and PR diffs did not show it. Replaced with the `\u0000` escape and updated the mutation spec; no other tracked text file has NUL bytes — 2026-10-17
